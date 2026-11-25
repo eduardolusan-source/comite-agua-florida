@@ -26,5 +26,5 @@ Mientras no haya conteo: todas las cuotas del padrón + otros ingresos − gasto
 
 ## Publicación
 - GitHub Pages: rama `main`, carpeta raíz.
-- Cloudflare Workers: `wrangler.jsonc` (sitio estático). Conectar el repo en
+- Cloudflare Workers: https://agua-florida.eduardo-lusan.workers.dev/ (se despliega solo con cada push). Se conectó en
   Cloudflare → Workers & Pages → Create → Import a repository.
