@@ -10,7 +10,7 @@
 
 const HOJA_CAJA = 'Caja';
 const HOJA_CONFIG = 'Config';
-const ENCABEZADOS_CAJA = ['Folio', 'Fecha', 'Tipo', 'Concepto', 'Monto', 'Pagado a / pagó', 'Nota', 'Anotó', 'Anotado el', 'Estatus'];
+const ENCABEZADOS_CAJA = ['Folio', 'Fecha', 'Tipo', 'Concepto', 'Monto', 'Pagado a / pagó', 'Nota', 'Anotó', 'Anotado el', 'Estatus', 'Cuotas del padrón al corte'];
 const CONFIG_INICIAL = [
   ['clave_tesorera', 'ESCRIBE-AQUI-LA-CLAVE', 'Clave para entrar a tesoreria.html (no importan mayúsculas)'],
   ['saldo_inicial', 0, 'Dinero con el que empezó la caja antes de las cuotas del padrón'],
@@ -85,7 +85,8 @@ function movimientos_() {
     .filter((r) => r[0])
     .map((r) => ({
       folio: String(r[0]), fecha: fechaISO_(r[1]), tipo: String(r[2]), concepto: String(r[3]), monto: Number(r[4]) || 0,
-      pagado_a: String(r[5]), nota: String(r[6]), registro: String(r[7]), estatus: String(r[9] || 'Registrado')
+      pagado_a: String(r[5]), nota: String(r[6]), registro: String(r[7]), estatus: String(r[9] || 'Registrado'),
+      anotado: r[8] instanceof Date ? r[8].toISOString() : String(r[8] || ''), cuotas: Number(r[10]) || 0
     }));
 }
 
@@ -129,6 +130,7 @@ function doPost(e) {
     CacheService.getScriptCache().remove('datos');
     if (b.accion === 'registrar') return salida_(registrar_(b));
     if (b.accion === 'anular') return salida_(anular_(b));
+    if (b.accion === 'corte') return salida_(corte_(b));
     if (b.accion === 'ajustes') {
       ponerConfig_('saldo_inicial', Number(b.saldo_inicial) || 0);
       if (b.contar_desde) ponerConfig_('contar_desde', Number(b.contar_desde));
@@ -155,6 +157,20 @@ function registrar_(b) {
   const folio = prefijo + ('000' + n).slice(-4);
   const p = fecha.split('-').map(Number);
   caja.appendRow([folio, new Date(p[0], p[1] - 1, p[2]), tipo, concepto, monto, limpiaTexto_(b.pagado_a, 80), limpiaTexto_(b.nota, 300), limpiaTexto_(b.registro, 60), new Date(), 'Registrado']);
+  return { ok: true, folio: folio };
+}
+
+// Corte de caja: la tesorera dice cuánto dinero tiene. Se guarda junto con el total de
+// cuotas que el padrón tenía en ese momento, para sumar después solo las anualidades nuevas.
+function corte_(b) {
+  const monto = Math.round(Number(b.monto) * 100) / 100;
+  if (!(monto >= 0) || b.monto === '' || b.monto == null) return { ok: false, error: 'falta cuánto hay' };
+  const caja = SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA) || (instalar(), SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA));
+  const n = movimientos_().filter((m) => m.folio.indexOf('C-') === 0)
+    .reduce((mx, m) => Math.max(mx, parseInt(m.folio.slice(2), 10) || 0), 0) + 1;
+  const folio = 'C-' + ('000' + n).slice(-4);
+  const ahora = new Date();
+  caja.appendRow([folio, ahora, 'Corte', 'Corte de caja', monto, '', limpiaTexto_(b.nota, 300), limpiaTexto_(b.registro, 60), ahora, 'Registrado', Number(b.cuotas) || 0]);
   return { ok: true, folio: folio };
 }
 

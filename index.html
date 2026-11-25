@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261125">
+<link rel="stylesheet" href="css/estilo.css?v=20261125b">
 </head>
 <body>
 <div class="ola-top">
@@ -110,9 +110,9 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261125"></script>
-<script src="js/padron-copia.js?v=20261125"></script>
-<script src="js/agua.js?v=20261125"></script>
+<script src="js/config.js?v=20261125b"></script>
+<script src="js/padron-copia.js?v=20261125b"></script>
+<script src="js/agua.js?v=20261125b"></script>
 <script>
 (async function () {
   const A = window.AGUA;
@@ -137,7 +137,7 @@
 
   const caja = A.cuentasDeCaja(P, datos.caja);
   $('d-caja').textContent = A.pesos(caja.saldo);
-  $('d-caja-l').textContent = datos.caja && caja.movimientos.length ? 'en caja' : 'cobrado en cuotas (aún no se anotan gastos)';
+  $('d-caja-l').textContent = caja.corte ? 'en caja' : 'cobrado en cuotas (falta que la tesorera cuente la caja)';
   $('d-debe').textContent = T.debe;
   $('d-debe-l').textContent = T.debe === 1 ? 'toma sin pagar' : 'tomas sin pagar · ' + P.deudores.length + ' personas';
   $('d-pend').textContent = T.aclarar + T.parcial + P.sueltos.length;

@@ -143,7 +143,7 @@
   async function pedir(params, ms) {
     const url = C.SCRIPT_URL + '?' + new URLSearchParams(params).toString();
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), ms || 12000);
+    const t = setTimeout(() => ctl.abort(), ms || 25000);
     try {
       const r = await fetch(url, { signal: ctl.signal });
       return await r.json();
@@ -170,20 +170,25 @@
     return { fuente: 'copia', fecha: new Date(copia.fecha + 'T12:00:00'), padron: interpretar(copia.filas), caja: null };
   }
 
-  // Cuentas de la caja: saldo inicial + cuotas del padrón + otros ingresos − egresos
+  // Cuentas de la caja.
+  // Si la tesorera ya contó el dinero (un «Corte»), se parte de ahí:
+  //   lo que contó + anualidades que entraron al padrón después + ingresos anotados después − gastos anotados después.
+  // Si nunca ha contado: todas las cuotas del padrón + otros ingresos − gastos.
   function cuentasDeCaja(padron, caja) {
     caja = caja || {};
-    const desde = +caja.contar_desde || (padron.anios[0] && padron.anios[0].anio) || padron.actual;
-    const movs = (caja.movimientos || []).filter((m) => m.estatus !== 'Anulado');
-    let cuotas = 0;
-    const porAnio = [];
-    padron.anios.forEach((a) => {
-      if (a.anio >= desde) { cuotas += padron.ingresos[a.anio]; porAnio.push({ anio: a.anio, monto: padron.ingresos[a.anio] }); }
-    });
-    const otros = movs.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + (+m.monto || 0), 0);
-    const egresos = movs.filter((m) => m.tipo === 'Egreso').reduce((s, m) => s + (+m.monto || 0), 0);
-    const inicial = +caja.saldo_inicial || 0;
-    return { desde, inicial, cuotas, porAnio, otros, egresos, saldo: inicial + cuotas + otros - egresos, movimientos: caja.movimientos || [] };
+    const todos = caja.movimientos || [];
+    const activos = todos.filter((m) => m.estatus !== 'Anulado');
+    const cuotasAhora = padron.anios.reduce((s, a) => s + padron.ingresos[a.anio], 0);
+    const cortes = activos.filter((m) => m.tipo === 'Corte').sort((a, b) => String(a.anotado).localeCompare(String(b.anotado)));
+    const corte = cortes.length ? cortes[cortes.length - 1] : null;
+    const cuenta = corte ? activos.filter((m) => m.tipo !== 'Corte' && String(m.anotado) > String(corte.anotado)) : activos;
+    const otros = cuenta.filter((m) => m.tipo === 'Ingreso').reduce((s, m) => s + (+m.monto || 0), 0);
+    const egresos = cuenta.filter((m) => m.tipo === 'Egreso').reduce((s, m) => s + (+m.monto || 0), 0);
+    const porAnio = padron.anios.map((a) => ({ anio: a.anio, monto: padron.ingresos[a.anio] }));
+    const cuotasNuevas = corte ? cuotasAhora - (+corte.cuotas || 0) : 0;
+    const saldo = corte ? (+corte.monto || 0) + cuotasNuevas + otros - egresos : cuotasAhora + otros - egresos;
+    const antesDelCorte = (m) => !!corte && m !== corte && String(m.anotado) <= String(corte.anotado);
+    return { corte, cuotasAhora, cuotasNuevas, porAnio, otros, egresos, saldo, movimientos: todos, antesDelCorte };
   }
 
   // ---------- piezas de página ----------

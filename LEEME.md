@@ -20,8 +20,9 @@ anote los gastos y la caja se calcule sola.
 - Si el script no responde se usa `js/padron-copia.js` (copia del 25 nov 2026).
 
 ## Caja
-saldo inicial + cuotas del padrón (desde el año elegido) + otros ingresos − gastos.
-Los ajustes se cambian desde la tesorería.
+Cuando la tesorera cuenta la caja (botón «Decir cuánto tengo»), el sitio parte de esa cantidad:
+lo contado + anualidades que entren al padrón después + ingresos aparte anotados después − gastos anotados después.
+Mientras no haya conteo: todas las cuotas del padrón + otros ingresos − gastos.
 
 ## Publicación
 - GitHub Pages: rama `main`, carpeta raíz.

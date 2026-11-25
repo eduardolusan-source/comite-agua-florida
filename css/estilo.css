@@ -251,6 +251,10 @@ mark { background: #fde89a; color: inherit; border-radius: 3px; padding: 0 2px; 
 .mov .cuanto.sale { color: var(--debe); }
 .mov .cuanto.entra { color: var(--bien); }
 .mov.anulado { opacity: .45; }
+.mov.antes { opacity: .6; }
+.mov.es-corte { background: var(--espuma); border-radius: 12px; }
+.mov .cuanto.corte { color: var(--hondo); }
+#contar { scroll-margin-top: 76px; }
 .mov.anulado .cuanto { text-decoration: line-through; }
 .quitar { background: none; border: 0; color: var(--gris); font: inherit; font-size: .8rem; text-decoration: underline; cursor: pointer; padding: 2px 0; }
 

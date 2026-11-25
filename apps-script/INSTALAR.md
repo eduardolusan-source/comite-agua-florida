@@ -27,5 +27,6 @@ Versión: Nueva versión → Implementar**. La URL `/exec` no cambia.
 ## Qué guarda
 - **Caja**: un renglón por movimiento (folio G-0001 para gastos, I-0001 para ingresos aparte).
   «Quitar» en la página no borra: marca el renglón como *Anulado*.
-- **Config**: clave de la tesorera, saldo inicial y desde qué año se suman las cuotas del padrón.
+- **Config**: clave de la tesorera.
+- **Corte de caja** (renglones C-0001…): la tesorera dice cuánto dinero tiene; se guarda con el total cobrado del padrón en ese momento (columna K) para sumar después solo las anualidades nuevas.
 - El script **no modifica** la pestaña del padrón: solo la lee.

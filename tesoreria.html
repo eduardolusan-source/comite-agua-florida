@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261125">
+<link rel="stylesheet" href="css/estilo.css?v=20261125b">
 </head>
 <body>
 <div class="ola-top">
@@ -44,6 +44,21 @@
         <small>Hay en caja</small>
         <b class="num" id="saldo">—</b>
         <div class="desglose" id="desglose"></div>
+        <button class="boton claro" type="button" id="b-contar" style="margin-top:16px">💵 Decir cuánto tengo en la caja</button>
+      </div>
+      <div class="tarjeta" id="contar" hidden style="margin-top:14px">
+        <h2>¿Cuánto dinero tienes ahorita?</h2>
+        <p class="chico">Cuenta el dinero de la caja y escríbelo. A partir de este momento el sitio parte de esa cantidad:
+          le suma las anualidades nuevas que se anoten en el padrón y lo que entre aparte, y le resta los gastos que anotes.</p>
+        <form id="f-corte">
+          <label class="campo monto"><span>Tengo en la caja</span><input id="c-monto" type="number" inputmode="decimal" min="0" step="0.01" placeholder="$0" required></label>
+          <label class="campo"><span>Nota <small style="font-weight:400;color:#5d6d76">(si quieres; por ejemplo, «incluye lo del banco»)</small></span><input id="c-nota" maxlength="300"></label>
+          <p class="error" id="e-corte"></p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="boton" id="b-corte" style="flex:1">Guardar lo que tengo</button>
+            <button class="boton claro" type="button" id="b-corte-no">Cancelar</button>
+          </div>
+        </form>
       </div>
     </section>
 
@@ -83,27 +98,12 @@
       </div>
     </section>
 
-    <section>
-      <details class="tarjeta">
-        <summary style="cursor:pointer;font-weight:600;color:var(--hondo)">Ajustes de la caja</summary>
-        <p class="chico" style="margin-top:12px">La caja se calcula así: <b>dinero con el que empezamos</b> + anualidades y tomas cobradas en el padrón (desde el año que elijas) + lo que entró aparte − los gastos.
-          Si la cuenta no cuadra con el dinero que tienes en la mano, ajusta aquí el punto de partida.</p>
-        <form id="f-ajustes">
-          <div class="rejilla r2" style="gap:0 16px">
-            <label class="campo"><span>Dinero con el que empezamos</span><input id="a-inicial" type="number" step="0.01" inputmode="decimal"></label>
-            <label class="campo"><span>Contar las cuotas del padrón desde</span><select id="a-desde"></select></label>
-          </div>
-          <p class="error" id="e-ajustes"></p>
-          <button class="boton claro">Guardar ajustes</button>
-        </form>
-      </details>
-    </section>
   </div>
 </main>
 
-<script src="js/config.js?v=20261125"></script>
-<script src="js/padron-copia.js?v=20261125"></script>
-<script src="js/agua.js?v=20261125"></script>
+<script src="js/config.js?v=20261125b"></script>
+<script src="js/padron-copia.js?v=20261125b"></script>
+<script src="js/agua.js?v=20261125b"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -175,32 +175,65 @@
     const P = datos.padron, k = A.cuentasDeCaja(P, datos.caja);
     $('saldo').textContent = A.pesos(k.saldo);
     const partes = [];
-    if (k.inicial) partes.push('Empezamos con ' + A.pesos(k.inicial));
-    k.porAnio.forEach((a) => partes.push('Cuotas ' + a.anio + ': ' + A.pesos(a.monto)));
-    if (k.otros) partes.push('Otros ingresos: ' + A.pesos(k.otros));
-    partes.push('Gastos: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
+    const fc = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.getDate() + ' de ' + A.MESES[d.getMonth()]; };
+    if (k.corte) {
+      partes.push('Contaste ' + A.pesos(k.corte.monto) + ' el ' + fc(k.corte.anotado || k.corte.fecha));
+      partes.push('Anualidades cobradas después: ' + (k.cuotasNuevas < 0 ? '−' : '') + A.pesos(Math.abs(k.cuotasNuevas)));
+      if (k.otros) partes.push('Entró aparte: ' + A.pesos(k.otros));
+      partes.push('Gastos después: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
+      $('b-contar').textContent = '💵 Volver a contar la caja';
+    } else {
+      k.porAnio.forEach((a) => partes.push('Cuotas ' + a.anio + ': ' + A.pesos(a.monto)));
+      if (k.otros) partes.push('Otros ingresos: ' + A.pesos(k.otros));
+      partes.push('Gastos: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
+      partes.push('<b style="flex-basis:100%;margin-top:6px;color:#fff">Todavía no nos dices cuánto dinero hay de verdad. Cuéntalo y escríbelo abajo: desde ahí sacamos las cuentas.</b>');
+      $('b-contar').textContent = '💵 Decir cuánto tengo en la caja';
+    }
     $('desglose').innerHTML = partes.map((p) => '<span>' + p + '</span>').join('');
     if (datos.fuente !== 'vivo') $('desglose').innerHTML += '<span style="flex-basis:100%">⚠ La hoja no respondió: falta sumar lo que se ha anotado.</span>';
 
     // movimientos
-    const movs = (k.movimientos || []).slice().sort((a, b) => (b.fecha + b.folio).localeCompare(a.fecha + a.folio));
+    const movs = (k.movimientos || []).slice().sort((a, b) => String(b.anotado || b.fecha).localeCompare(String(a.anotado || a.fecha)));
     $('movs').innerHTML = movs.length ? movs.map((m) => {
       const d = new Date(m.fecha + 'T12:00:00');
-      const an = m.estatus === 'Anulado';
-      return '<div class="mov' + (an ? ' anulado' : '') + '"><div class="fecha"><b>' + d.getDate() + '</b>' + A.MESES[d.getMonth()].slice(0, 3) + ' ' + String(d.getFullYear()).slice(2) + '</div>' +
-        '<div class="que"><b>' + A.esc(m.concepto) + '</b><span>' + [m.pagado_a, m.nota, m.folio + ' · anotó ' + m.registro].filter(Boolean).map(A.esc).join(' · ') + '</span></div>' +
-        '<div class="cuanto num ' + (m.tipo === 'Egreso' ? 'sale' : 'entra') + '">' + (m.tipo === 'Egreso' ? '−' : '+') + A.pesos(m.monto) +
+      const an = m.estatus === 'Anulado', esCorte = m.tipo === 'Corte', antes = k.antesDelCorte(m);
+      const clase = esCorte ? 'corte' : m.tipo === 'Egreso' ? 'sale' : 'entra';
+      const signo = esCorte ? '' : m.tipo === 'Egreso' ? '−' : '+';
+      return '<div class="mov' + (an ? ' anulado' : '') + (antes ? ' antes' : '') + (esCorte ? ' es-corte' : '') + '"><div class="fecha"><b>' + d.getDate() + '</b>' + A.MESES[d.getMonth()].slice(0, 3) + ' ' + String(d.getFullYear()).slice(2) + '</div>' +
+        '<div class="que"><b>' + (esCorte ? '💵 Contó la caja' : A.esc(m.concepto)) + '</b><span>' + [m.pagado_a, m.nota, m.folio + ' · anotó ' + m.registro].filter(Boolean).map(A.esc).join(' · ') +
+        (antes ? ' · ya iba incluido en el conteo' : '') + '</span></div>' +
+        '<div class="cuanto num ' + clase + '">' + signo + A.pesos(m.monto) +
         (an ? '' : '<br><button class="quitar" data-folio="' + A.esc(m.folio) + '">quitar</button>') + '</div></div>';
-    }).join('') : '<p class="vacio">Todavía no hay nada anotado. Empieza con el primer gasto 👆</p>';
-
-    // ajustes
-    $('a-inicial').value = k.inicial || 0;
-    $('a-desde').innerHTML = P.anios.map((a) => '<option' + (a.anio === k.desde ? ' selected' : '') + '>' + a.anio + '</option>').join('');
+    }).join('') : '<p class="vacio">Todavía no hay nada anotado. Empieza diciendo cuánto tienes en la caja 👆</p>';
   }
+
+  $('b-contar').addEventListener('click', () => {
+    $('contar').hidden = false; $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = '';
+    $('contar').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('c-monto').focus({ preventScroll: true });
+  });
+  $('b-corte-no').addEventListener('click', () => { $('contar').hidden = true; });
+  $('f-corte').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const monto = parseFloat($('c-monto').value);
+    if (!(monto >= 0)) { $('e-corte').textContent = 'Escribe cuánto dinero hay.'; return; }
+    $('b-corte').disabled = true; $('b-corte').textContent = 'Guardando…';
+    try {
+      // se guarda también cuánto llevaba cobrado el padrón en este momento, para sumar solo lo nuevo
+      const fresco = await A.cargar({ fresco: true });
+      if (fresco.fuente !== 'vivo') throw new Error('la hoja no respondió; intenta en un momento');
+      const cuotas = A.cuentasDeCaja(fresco.padron, fresco.caja).cuotasAhora;
+      const r = await A.enviar({ accion: 'corte', clave, monto, cuotas, nota: $('c-nota').value.trim(), registro: $('registro').value.trim() });
+      if (!r.ok) throw new Error(r.error === 'clave' ? 'La clave cambió. Vuelve a entrar.' : r.error);
+      $('contar').hidden = true;
+      await refrescar(true);
+      $('caja').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) { $('e-corte').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
+    $('b-corte').disabled = false; $('b-corte').textContent = 'Guardar lo que tengo';
+  });
 
   $('movs').addEventListener('click', async (e) => {
     const b = e.target.closest('.quitar'); if (!b) return;
-    if (!confirm('¿Quitar este movimiento de las cuentas? Se queda tachado en la lista.')) return;
+    if (!confirm('¿Quitar este renglón de las cuentas? Se queda tachado en la lista.')) return;
     b.disabled = true;
     try {
       const r = await A.enviar({ accion: 'anular', clave, folio: b.dataset.folio, registro: $('registro').value });
@@ -275,17 +308,6 @@
       $('e-mov').textContent = 'No se guardó: ' + (err.message || 'no hay conexión') + '. Intenta otra vez.';
     }
     $('b-guardar').disabled = false; $('b-guardar').textContent = 'Guardar';
-  });
-
-  $('f-ajustes').addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    $('e-ajustes').textContent = '';
-    try {
-      const r = await A.enviar({ accion: 'ajustes', clave, saldo_inicial: parseFloat($('a-inicial').value) || 0, contar_desde: +$('a-desde').value, registro: $('registro').value });
-      if (!r.ok) throw new Error(r.error);
-      $('e-ajustes').style.color = 'var(--bien)'; $('e-ajustes').textContent = 'Listo, se guardaron los ajustes.';
-      await refrescar(true);
-    } catch (err) { $('e-ajustes').style.color = ''; $('e-ajustes').textContent = 'No se guardó: ' + (err.message || 'sin conexión'); }
   });
 
   // Si ya había entrado en esta sesión, pasa directo
