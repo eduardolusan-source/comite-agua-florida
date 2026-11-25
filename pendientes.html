@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261125c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126">
 </head>
 <body>
 <div class="ola-top">
@@ -27,9 +27,9 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261125c"></script>
-<script src="js/padron-copia.js?v=20261125c"></script>
-<script src="js/agua.js?v=20261125c"></script>
+<script src="js/config.js?v=20261126"></script>
+<script src="js/padron-copia.js?v=20261126"></script>
+<script src="js/agua.js?v=20261126"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -38,12 +38,12 @@
   const datos = await A.cargar();
   const P = datos.padron;
   const nota = (t) => t.notas.length ? ' · «' + A.esc(t.notas.join(' · ')) + '»' : '';
-  const linea = (t, extra) => '<div class="ficha"><div class="quien"><span class="toma">' + (t.toma || 's/n') + '</span> ' + A.esc(t.nombre) + '</div>' +
+  const linea = (t, extra) => '<div class="ficha"><div class="quien">' + (t.toma ? '<a class="toma" href="mapa.html?toma=' + t.toma + '">' + t.toma + '</a>' : '<span class="toma">s/n</span>') + ' ' + A.esc(t.nombre) + '</div>' +
     '<div class="det">' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + nota(t) + (extra ? ' · ' + extra : '') + '</div></div>';
 
   const grupos = [
     { id: 'no-existe', t: 'Tomas que dicen que no existen', d: 'Revisar en campo y, si es cierto, darlas de baja en el padrón para que no cuenten como adeudo.',
-      l: P.tomas.filter((t) => t.noExiste && t.estado !== 'cortada') },
+      l: P.tomas.filter((t) => t.noExiste && !['cortada', 'baja'].includes(t.estado)) },
     { id: 'corte', t: 'Piden corte o hay que revisar', d: 'Personas que pidieron que les corten la toma, o casos con una nota para revisar.',
       l: P.tomas.filter((t) => t.estado === 'aclarar' && !t.noExiste) },
     { id: 'parcial', t: 'Pagaron menos de la cuota', d: 'Tienen recibo de ' + P.actual + ' pero por menos de $' + C.CUOTA + '. ¿Fue un acuerdo o les falta?',
@@ -56,6 +56,8 @@
       l: P.tomas.filter((t) => t.barrio === 'Sin barrio' || !isFinite(t.x)) },
     { id: 'cortadas', t: 'Tomas cortadas', d: 'Están en el padrón como corte. No se les cobra mientras sigan cortadas. Si alguna se reconecta: $' + C.TOMA_NUEVA + ' de toma nueva más $' + C.RECARGO + ' de multa (art. 10).',
       l: P.tomas.filter((t) => t.estado === 'cortada'), info: true },
+    { id: 'bajas', t: 'Dadas de baja', d: 'Ya no cuentan en las cuentas ni salen en el mapa. Se pueden reactivar desde la tesorería.',
+      l: P.tomas.filter((t) => t.estado === 'baja'), info: true },
     { id: 'comunidad', t: 'Tomas de la comunidad', d: 'No pagan anualidad.', l: P.tomas.filter((t) => t.estado === 'exenta'), info: true }
   ];
 

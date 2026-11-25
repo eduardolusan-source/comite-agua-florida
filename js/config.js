@@ -13,6 +13,10 @@ window.AGUA_CONFIG = {
   JORNAL: 350,
   PAGO_TECNICO: 2000,
 
+  // Desde qué año se cobran los adeudos atrasados (2025 tiene datos incompletos: va a Pendientes)
+  ADEUDO_DESDE: 2026,
+  RECONEXION: 400,
+
   // La anualidad vence el último día de marzo (art. 6)
   VENCE_MES: 3,
   VENCE_DIA: 31

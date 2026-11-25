@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261125c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126">
 </head>
 <body>
 <div class="ola-top">
@@ -91,6 +91,100 @@
       </div>
     </section>
 
+
+    <section id="padron">
+      <div class="tarjeta">
+        <h2>Cobros y tomas</h2>
+        <p class="chico">Lo que se guarda aquí se escribe directo en el padrón (y queda en la pestaña «Cambios» con tu nombre).</p>
+        <div class="pestanas" role="group" id="p-tabs">
+          <button data-p="cobrar" aria-pressed="true">💵 Cobrar</button>
+          <button data-p="nueva" aria-pressed="false">➕ Toma nueva</button>
+          <button data-p="toma" aria-pressed="false">✏️ Corregir o dar de baja</button>
+          <button data-p="cambios" aria-pressed="false">🕘 Cambios</button>
+        </div>
+
+        <div id="p-cobrar" class="p-panel">
+          <input class="buscar" id="c-q" type="search" placeholder="¿Quién viene a pagar? Nombre o número de toma" autocomplete="off">
+          <div class="resultados" id="c-res" hidden></div>
+          <form id="f-cobrar" hidden>
+            <div class="toma-elegida" id="c-toma"></div>
+            <span class="chico">¿Qué año paga?</span>
+            <div class="filtros" id="c-anios" style="margin-top:6px"></div>
+            <div class="conceptos" id="c-conceptos"></div>
+            <label class="campo monto"><span>Total que recibes</span><input id="c-monto2" type="number" inputmode="decimal" min="1" step="0.01" required></label>
+            <div class="rejilla r2" style="gap:0 16px">
+              <label class="campo"><span>Número de recibo</span><input id="c-recibo" inputmode="numeric" pattern="[0-9]+" required placeholder="Ej. 160"></label>
+              <label class="campo"><span>Nota <small style="font-weight:400;color:#5d6d76">(si quieres)</small></span><input id="c-nota2" maxlength="200"></label>
+            </div>
+            <p class="error" id="e-cobrar"></p>
+            <button class="boton" id="b-cobrar" style="width:100%">Guardar el pago</button>
+          </form>
+          <div id="c-listo" hidden></div>
+        </div>
+
+        <div id="p-nueva" class="p-panel" hidden>
+          <form id="f-nueva">
+            <div class="rejilla r2" style="gap:0 16px">
+              <label class="campo"><span>Nombre</span><input id="n-nombre" required maxlength="60"></label>
+              <label class="campo"><span>Apellido</span><input id="n-apellido" maxlength="60"></label>
+              <label class="campo"><span>Barrio</span><select id="n-barrio" required></select></label>
+              <label class="campo"><span>Agua</span><select id="n-fuente"><option>Potable</option><option>Arroyo</option></select></label>
+            </div>
+            <div class="toma-elegida">
+              <b>¿Dónde está la toma?</b>
+              <p class="chico" style="margin:4px 0 10px">Si estás parada junto a la toma, toca el botón y el teléfono pone la ubicación.</p>
+              <button class="boton claro" type="button" id="n-gps">📍 Usar mi ubicación</button>
+              <div class="rejilla r2" style="gap:0 16px;margin-top:10px">
+                <label class="campo"><span>Latitud</span><input id="n-lat" inputmode="decimal" placeholder="21.41…"></label>
+                <label class="campo"><span>Longitud</span><input id="n-lng" inputmode="decimal" placeholder="-99.73…"></label>
+              </div>
+            </div>
+            <div class="rejilla r2" style="gap:0 16px">
+              <label class="campo"><span>Año de la anualidad</span><select id="n-anio"></select></label>
+              <label class="campo monto"><span>Total que recibes</span><input id="n-monto" type="number" inputmode="decimal" min="1" step="0.01" required></label>
+              <label class="campo"><span>Número de recibo</span><input id="n-recibo" inputmode="numeric" pattern="[0-9]+" required></label>
+              <label class="campo"><span>Nota <small style="font-weight:400;color:#5d6d76">(si quieres)</small></span><input id="n-nota" maxlength="200"></label>
+            </div>
+            <p class="chico">Toma nueva: $400 más la anualidad completa del año (art. 5).</p>
+            <p class="error" id="e-nueva"></p>
+            <button class="boton" id="b-nueva" style="width:100%">Dar de alta la toma</button>
+          </form>
+          <div id="n-listo" hidden></div>
+        </div>
+
+        <div id="p-toma" class="p-panel" hidden>
+          <input class="buscar" id="t-q" type="search" placeholder="Buscar la toma: nombre o número" autocomplete="off">
+          <div class="resultados" id="t-res" hidden></div>
+          <div id="t-edit" hidden>
+            <div class="toma-elegida" id="t-toma"></div>
+            <h3>¿Cómo está esta toma?</h3>
+            <form id="f-estado">
+              <div class="conceptos" id="t-estados"></div>
+              <label class="campo"><span>¿Por qué? (queda anotado)</span><input id="t-motivo" required maxlength="300" placeholder="Ej. revisamos en campo y la toma no existe"></label>
+              <p class="error" id="e-estado"></p>
+              <button class="boton" id="b-estado">Guardar cómo está</button>
+            </form>
+            <h3 style="margin-top:26px">Corregir datos</h3>
+            <form id="f-datos">
+              <div class="rejilla r2" style="gap:0 16px">
+                <label class="campo"><span>Nombre</span><input id="d-nombre" maxlength="60"></label>
+                <label class="campo"><span>Apellido</span><input id="d-apellido" maxlength="60"></label>
+                <label class="campo"><span>Barrio</span><select id="d-barrio"></select></label>
+                <label class="campo"><span>Agua</span><select id="d-fuente"><option>Potable</option><option>Arroyo</option><option>Corral</option></select></label>
+                <label class="campo"><span>Latitud</span><input id="d-lat" inputmode="decimal"></label>
+                <label class="campo"><span>Longitud</span><input id="d-lng" inputmode="decimal"></label>
+              </div>
+              <button class="boton claro" type="button" id="d-gps" style="margin-bottom:14px">📍 Poner mi ubicación actual</button>
+              <p class="error" id="e-datos"></p>
+              <button class="boton claro" id="b-datos" style="width:100%">Guardar correcciones</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="p-cambios" class="p-panel bitacora" hidden><div id="cambios"></div></div>
+      </div>
+    </section>
+
     <section>
       <div class="tarjeta">
         <h2>Lo que se ha anotado</h2>
@@ -101,9 +195,9 @@
   </div>
 </main>
 
-<script src="js/config.js?v=20261125c"></script>
-<script src="js/padron-copia.js?v=20261125c"></script>
-<script src="js/agua.js?v=20261125c"></script>
+<script src="js/config.js?v=20261126"></script>
+<script src="js/padron-copia.js?v=20261126"></script>
+<script src="js/agua.js?v=20261126"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -161,10 +255,13 @@
     $('fecha').value = hoyISO();
     pintarAtajos();
     await refrescar(true);
+    prepararNueva();
+    irDesdeParams();
   }
 
   async function refrescar(fresco) {
     datos = await A.cargar({ fresco });
+    datos.cambios = datos.cambios || [];
     pintarCaja();
   }
 
@@ -309,6 +406,206 @@
     }
     $('b-guardar').disabled = false; $('b-guardar').textContent = 'Guardar';
   });
+
+
+  // =================== Cobros y tomas ===================
+  const PARAMS = new URLSearchParams(location.search);
+  const ESTADO_TXT = { pagada: 'pagada', parcial: 'pagó una parte', debe: 'sin pagar', aclarar: 'por aclarar', cortada: 'cortada', exenta: 'de la comunidad', baja: 'dada de baja' };
+  const P_ = () => datos.padron;
+  const hoyTxt = () => A.fechaLarga(new Date());
+
+  document.getElementById('p-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    abrirPanel(b.dataset.p);
+  });
+  function abrirPanel(p) {
+    document.querySelectorAll('#p-tabs button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.p === p));
+    document.querySelectorAll('.p-panel').forEach((x) => (x.hidden = x.id !== 'p-' + p));
+    if (p === 'cambios') pintarCambios();
+  }
+
+  function buscar(q) {
+    q = A.sinAcentos(q.trim());
+    if (!q) return [];
+    return P_().tomas.filter((t) => t.toma === q || A.sinAcentos(t.nombre).includes(q) || t.toma.startsWith(q))
+      .sort((a, b) => (a.toma === q ? -1 : b.toma === q ? 1 : 0) || b.adeudo - a.adeudo || (+a.toma) - (+b.toma)).slice(0, 40);
+  }
+  function pintarResultados(cont, lista, alElegir) {
+    cont.hidden = !lista.length;
+    cont.innerHTML = lista.map((t) => '<button type="button" class="ficha fila-toma" data-t="' + t.toma + '"><div class="quien"><span class="toma">' + t.toma + '</span> ' + A.esc(t.nombre) + '</div>' +
+      '<div class="det">' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + ESTADO_TXT[t.estado] + '</div><div class="monto num">' + (t.adeudo ? A.pesos(t.adeudo) : '') + '</div></button>').join('');
+    cont.onclick = (e) => { const b = e.target.closest('.fila-toma'); if (b) { cont.hidden = true; alElegir(b.dataset.t); } };
+  }
+  const tomaPorNum = (n) => P_().tomas.find((t) => t.toma === String(n));
+  const cabTomaHTML = (t) => '<h3>Toma ' + t.toma + ' · ' + A.esc(t.nombre) + '</h3><p class="chico" style="margin:0">' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + ESTADO_TXT[t.estado] +
+    ' · ' + P_().anios.map((a) => a.anio + ': ' + (t.pagos[a.anio].pagado ? '✓ ' + A.pesos(t.pagos[a.anio].monto) : '—')).join(' · ') +
+    (t.adeudo ? '<br><b style="color:var(--debe)">Debe ' + A.pesos(t.adeudo) + '</b>' : '') + (t.notas.length ? '<br>📝 ' + A.esc(t.notas.join(' · ')) : '') + '</p>';
+
+  // ---------- Cobrar ----------
+  let cTomaN = null, cAnio = null;
+  $('c-q').addEventListener('input', () => pintarResultados($('c-res'), buscar($('c-q').value), elegirCobro));
+  function elegirCobro(n) {
+    const t = tomaPorNum(n); if (!t) return;
+    cTomaN = t.toma; $('c-listo').hidden = true; $('f-cobrar').hidden = false; $('e-cobrar').textContent = '';
+    $('c-q').value = t.toma + ' · ' + t.nombre;
+    $('c-toma').innerHTML = cabTomaHTML(t);
+    if (t.estado === 'baja') { $('e-cobrar').textContent = 'Esta toma está dada de baja. Primero reactívala en «Corregir o dar de baja».'; }
+    cAnio = t.adeudos.length ? t.adeudos[0].anio : P_().actual;
+    pintarAnios();
+    $('c-recibo').value = ''; $('c-nota2').value = '';
+  }
+  function pintarAnios() {
+    const t = tomaPorNum(cTomaN);
+    $('c-anios').innerHTML = P_().anios.filter((a) => a.anio >= P_().desde - 0 || !t.pagos[a.anio].pagado).map((a) =>
+      '<button type="button" class="chip" data-a="' + a.anio + '" aria-pressed="' + (a.anio === cAnio) + '">' + a.anio + (t.pagos[a.anio].pagado ? ' ✓' : '') + '</button>').join('');
+    const d = A.cuantoDebe(t, cAnio);
+    const items = [];
+    if (d.cuota > 0) items.push(['Anualidad ' + cAnio, d.cuota, true, 'Anualidad']);
+    else items.push(['Anualidad ' + cAnio + ' (ya pagada)', C.CUOTA, false, 'Anualidad']);
+    items.push(['Recargo por pagar después del 31 de marzo', C.RECARGO, d.recargo > 0, 'Recargo']);
+    items.push(['Reconexión (la toma estaba cortada)', C.RECONEXION, t.estado === 'cortada', 'Reconexión']);
+    $('c-conceptos').innerHTML = items.map((it) => '<label><input type="checkbox" data-m="' + it[1] + '" data-n="' + it[3] + '"' + (it[2] ? ' checked' : '') + '><span>' + it[0] + '</span><b>' + A.pesos(it[1]) + '</b></label>').join('');
+    sumar();
+  }
+  $('c-anios').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) { cAnio = +b.dataset.a; pintarAnios(); } });
+  $('c-conceptos').addEventListener('change', sumar);
+  function sumar() { $('c-monto2').value = [...document.querySelectorAll('#c-conceptos input:checked')].reduce((s, i) => s + (+i.dataset.m), 0) || ''; }
+
+  function reciboHTML(r, conceptos) {
+    const texto = 'Comité de Agua de La Florida\nRecibo ' + r.recibo + ' · ' + r.fecha + '\nToma ' + r.toma + ' · ' + r.nombre + '\n' +
+      (conceptos ? conceptos + ' ' : '') + r.anio + ': $' + r.monto + '\nGracias por cuidar el agua 💧';
+    return '<div class="recibo-ok"><h3>✓ Quedó en el padrón</h3><p style="white-space:pre-line;margin:0 0 12px">' + A.esc(texto) + '</p>' +
+      '<div class="ft-botones"><a class="boton" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(texto) + '">Mandar por WhatsApp</a>' +
+      '<button class="boton claro" type="button" data-otro="1">Cobrar a otra persona</button></div></div>';
+  }
+
+  $('f-cobrar').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const monto = parseFloat($('c-monto2').value), recibo = $('c-recibo').value.trim();
+    if (!(monto > 0)) { $('e-cobrar').textContent = 'Escribe cuánto recibes.'; return; }
+    if (!/^\d+$/.test(recibo)) { $('e-cobrar').textContent = 'El número de recibo va solo con números.'; return; }
+    const conceptos = [...document.querySelectorAll('#c-conceptos input:checked')].map((i) => i.dataset.n);
+    $('b-cobrar').disabled = true; $('b-cobrar').textContent = 'Guardando…'; $('e-cobrar').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'cobrar', clave, toma: cTomaN, anio: cAnio, monto, recibo, conceptos, nota: $('c-nota2').value.trim(), registro: $('registro').value.trim() });
+      if (!r.ok) throw new Error(r.error === 'clave' ? 'la clave cambió, vuelve a entrar' : r.error);
+      $('f-cobrar').hidden = true; $('c-listo').hidden = false;
+      $('c-listo').innerHTML = reciboHTML(r, conceptos.join(' + '));
+      await refrescar(true);
+      const t = tomaPorNum(r.toma);
+      const otras = P_().tomas.filter((x) => x !== t && x.adeudo > 0 && A.sinAcentos(x.nombre) === A.sinAcentos(t.nombre));
+      if (otras.length) $('c-listo').insertAdjacentHTML('beforeend', '<p class="chico" style="margin-top:10px">Esta persona también debe: ' +
+        otras.map((o) => '<button type="button" class="chip" data-cobrar="' + o.toma + '">toma ' + o.toma + ' · ' + A.pesos(o.adeudo) + '</button>').join(' ') + '</p>');
+    } catch (err) { $('e-cobrar').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
+    $('b-cobrar').disabled = false; $('b-cobrar').textContent = 'Guardar el pago';
+  });
+  $('c-listo').addEventListener('click', (e) => {
+    if (e.target.closest('[data-otro]')) { $('c-listo').hidden = true; $('c-q').value = ''; $('c-q').focus(); }
+    const o = e.target.closest('[data-cobrar]'); if (o) elegirCobro(o.dataset.cobrar);
+  });
+
+  // ---------- Toma nueva ----------
+  function prepararNueva() {
+    $('n-barrio').innerHTML = '<option value="">Elige…</option>' + P_().listaBarrios.map((b) => '<option>' + A.esc(b) + '</option>').join('');
+    $('n-anio').innerHTML = P_().anios.filter((a) => a.anio >= P_().actual).map((a) => '<option' + (a.anio === P_().actual ? ' selected' : '') + '>' + a.anio + '</option>').join('');
+    $('n-monto').value = C.TOMA_NUEVA + C.CUOTA;
+  }
+  function gps(latEl, lngEl, boton) {
+    if (!navigator.geolocation) { boton.textContent = 'Este teléfono no da la ubicación'; return; }
+    boton.textContent = 'Buscando…';
+    navigator.geolocation.getCurrentPosition((p) => {
+      latEl.value = p.coords.latitude.toFixed(6); lngEl.value = p.coords.longitude.toFixed(6);
+      boton.textContent = '📍 Listo (±' + Math.round(p.coords.accuracy) + ' m)';
+    }, () => { boton.textContent = 'No se pudo: revisa el permiso de ubicación'; }, { enableHighAccuracy: true, timeout: 20000 });
+  }
+  $('n-gps').onclick = () => gps($('n-lat'), $('n-lng'), $('n-gps'));
+  $('d-gps').onclick = () => gps($('d-lat'), $('d-lng'), $('d-gps'));
+  $('f-nueva').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const recibo = $('n-recibo').value.trim();
+    if (!/^\d+$/.test(recibo)) { $('e-nueva').textContent = 'El número de recibo va solo con números.'; return; }
+    $('b-nueva').disabled = true; $('e-nueva').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'nueva_toma', clave, nombre: $('n-nombre').value.trim(), apellido: $('n-apellido').value.trim(), barrio: $('n-barrio').value,
+        fuente: $('n-fuente').value, lat: $('n-lat').value.trim(), lng: $('n-lng').value.trim(), anio: +$('n-anio').value, monto: parseFloat($('n-monto').value),
+        recibo, nota: $('n-nota').value.trim(), registro: $('registro').value.trim() });
+      if (!r.ok) throw new Error(r.error);
+      $('f-nueva').reset(); prepararNueva();
+      $('n-listo').hidden = false;
+      $('n-listo').innerHTML = '<p class="frase" style="margin:10px 0">Nueva toma número <b>' + A.esc(r.toma) + '</b> 🎉</p>' + reciboHTML(r, 'Toma nueva + anualidad');
+      await refrescar(true);
+    } catch (err) { $('e-nueva').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
+    $('b-nueva').disabled = false;
+  });
+  $('n-listo').addEventListener('click', (e) => { if (e.target.closest('[data-otro]')) { $('n-listo').hidden = true; abrirPanel('cobrar'); } });
+
+  // ---------- Corregir o dar de baja ----------
+  let tTomaN = null;
+  const ESTADOS = [
+    ['Anualidad', 'Activa: paga su anualidad', 'Se cobra normalmente.'],
+    ['Corte', 'Cortada', 'No se cobra mientras siga cortada. Para reconectar: $400 + $100 (art. 10).'],
+    ['Comunidad', 'De la comunidad', 'No paga anualidad (escuela, centro de salud, panteón…).'],
+    ['Baja', 'Dar de baja', 'La toma no existe o ya no se usa. Sale de las cuentas y del mapa; se puede reactivar.']
+  ];
+  $('t-q').addEventListener('input', () => pintarResultados($('t-res'), buscar($('t-q').value), elegirToma));
+  function elegirToma(n) {
+    const t = tomaPorNum(n); if (!t) return;
+    tTomaN = t.toma; $('t-edit').hidden = false; $('t-q').value = t.toma + ' · ' + t.nombre;
+    $('t-toma').innerHTML = cabTomaHTML(t) + '<p style="margin:8px 0 0"><a href="mapa.html?toma=' + t.toma + '">Ver en el mapa ›</a></p>';
+    const actual = t.baja ? 'Baja' : t.comunidad ? 'Comunidad' : t.cortada ? 'Corte' : 'Anualidad';
+    $('t-estados').innerHTML = ESTADOS.map((e) => '<label><input type="radio" name="estado" value="' + e[0] + '"' + (e[0] === actual ? ' checked' : '') + '><span><b style="font-family:var(--sans)">' + e[1] + '</b><br><small class="chico">' + e[2] + '</small></span></label>').join('');
+    $('t-motivo').value = ''; $('e-estado').textContent = ''; $('e-datos').textContent = '';
+    const fila = (datos.filas || [])[t.fila - 1] || [];
+    $('d-nombre').value = (fila[5] || '').trim(); $('d-apellido').value = (fila[6] || '').trim();
+    $('d-barrio').innerHTML = P_().listaBarrios.map((b) => '<option' + (b === t.barrio ? ' selected' : '') + '>' + A.esc(b) + '</option>').join('') + (t.barrio === 'Sin barrio' ? '<option value="" selected>Sin barrio</option>' : '');
+    $('d-fuente').value = ['Potable', 'Arroyo', 'Corral'].includes(t.fuente) ? t.fuente : 'Potable';
+    $('d-lat').value = isFinite(t.lat) ? t.lat : ''; $('d-lng').value = isFinite(t.lng) ? t.lng : '';
+  }
+  $('f-estado').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const nuevo = (document.querySelector('#t-estados input:checked') || {}).value;
+    if (!nuevo) return;
+    if (nuevo === 'Baja' && !confirm('¿Dar de baja la toma ' + tTomaN + '? Deja de contar en las cuentas y en el mapa. Se puede reactivar después.')) return;
+    $('b-estado').disabled = true; $('e-estado').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'estado_toma', clave, toma: tTomaN, nuevo, motivo: $('t-motivo').value.trim(), registro: $('registro').value.trim() });
+      if (!r.ok) throw new Error(r.error);
+      await refrescar(true); elegirToma(tTomaN);
+      $('e-estado').style.color = 'var(--bien)'; $('e-estado').textContent = 'Listo: ' + (r.antes || '—') + ' → ' + r.ahora + '.';
+    } catch (err) { $('e-estado').style.color = ''; $('e-estado').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
+    $('b-estado').disabled = false;
+  });
+  $('f-datos').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    $('b-datos').disabled = true; $('e-datos').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'editar_toma', clave, toma: tTomaN, nombre: $('d-nombre').value, apellido: $('d-apellido').value, barrio: $('d-barrio').value,
+        fuente: $('d-fuente').value, lat: $('d-lat').value.trim(), lng: $('d-lng').value.trim(), registro: $('registro').value.trim() });
+      if (!r.ok) throw new Error(r.error);
+      await refrescar(true); elegirToma(tTomaN);
+      $('e-datos').style.color = 'var(--bien)'; $('e-datos').textContent = r.cambios ? 'Listo: ' + r.cambios + (r.cambios === 1 ? ' dato corregido.' : ' datos corregidos.') : 'No había nada que cambiar.';
+    } catch (err) { $('e-datos').style.color = ''; $('e-datos').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
+    $('b-datos').disabled = false;
+  });
+
+  // ---------- Cambios ----------
+  function pintarCambios() {
+    const l = datos.cambios || [];
+    $('cambios').innerHTML = l.length ? l.map((c) => {
+      const d = new Date(c.fecha);
+      return '<div class="mov"><div class="fecha"><b>' + d.getDate() + '</b>' + A.MESES[d.getMonth()].slice(0, 3) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</div>' +
+        '<div class="que"><b>' + A.esc(c.accion) + (c.toma ? ' · toma ' + A.esc(c.toma) : '') + '</b><span>' + A.esc(c.detalle) + ' · ' + A.esc(c.quien) + '</span></div></div>';
+    }).join('') : '<p class="vacio">Todavía no hay cambios anotados desde el sitio.</p>';
+  }
+
+  // llegar desde el mapa: tesoreria.html?accion=cobrar&toma=11
+  function irDesdeParams() {
+    const acc = PARAMS.get('accion'), n = PARAMS.get('toma');
+    if (!acc) return;
+    abrirPanel(acc === 'toma' ? 'toma' : acc === 'nueva' ? 'nueva' : 'cobrar');
+    if (n) (acc === 'toma' ? elegirToma : elegirCobro)(n);
+    $('padron').scrollIntoView({ behavior: 'smooth' });
+  }
 
   // Si ya había entrado en esta sesión, pasa directo
   if (clave && C.SCRIPT_URL) {

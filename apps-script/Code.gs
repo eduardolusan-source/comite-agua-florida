@@ -95,6 +95,15 @@ function movimientos_() {
     }));
 }
 
+function cambios_(n) {
+  const h = libro_().getSheetByName('Cambios');
+  if (!h || h.getLastRow() < 2) return [];
+  const desde = Math.max(2, h.getLastRow() - n + 1);
+  return h.getRange(desde, 1, h.getLastRow() - desde + 1, 5).getValues().reverse().map((r) => ({
+    fecha: r[0] instanceof Date ? r[0].toISOString() : String(r[0]), quien: String(r[1]), accion: String(r[2]), toma: String(r[3]), detalle: String(r[4])
+  }));
+}
+
 function limpiaTexto_(s, max) { return String(s == null ? '' : s).replace(/[\r\n\t]+/g, ' ').replace(/^[=+\-@]/, "'$&").slice(0, max || 200).trim(); }
 
 // ---------- web ----------
@@ -117,7 +126,8 @@ function datos_(fresco) {
     ok: true,
     hora: new Date().toISOString(),
     padron: padron,
-    caja: { saldo_inicial: Number(cfg.saldo_inicial) || 0, contar_desde: Number(cfg.contar_desde) || 0, movimientos: movimientos_() }
+    caja: { saldo_inicial: Number(cfg.saldo_inicial) || 0, contar_desde: Number(cfg.contar_desde) || 0, movimientos: movimientos_() },
+    cambios: cambios_(40)
   };
   try { cache.put('datos', JSON.stringify(res), 120); } catch (err) { /* muy grande para la caché: no pasa nada */ }
   return res;
@@ -136,6 +146,11 @@ function doPost(e) {
     if (b.accion === 'registrar') return salida_(registrar_(b));
     if (b.accion === 'anular') return salida_(anular_(b));
     if (b.accion === 'corte') return salida_(corte_(b));
+    if (b.accion === 'cobrar') return salida_(cobrar_(b));
+    if (b.accion === 'nueva_toma') return salida_(nuevaToma_(b));
+    if (b.accion === 'estado_toma') return salida_(estadoToma_(b));
+    if (b.accion === 'editar_toma') return salida_(editarToma_(b));
+    if (b.accion === 'preparar_anio') return salida_(prepararAnio_(Number(b.anio)));
     if (b.accion === 'ajustes') {
       ponerConfig_('saldo_inicial', Number(b.saldo_inicial) || 0);
       if (b.contar_desde) ponerConfig_('contar_desde', Number(b.contar_desde));
@@ -188,4 +203,168 @@ function anular_(b) {
   const nota = caja.getRange(i + 1, 7);
   nota.setValue((nota.getValue() ? nota.getValue() + ' · ' : '') + 'quitado por ' + limpiaTexto_(b.registro, 60) + ' el ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'));
   return { ok: true };
+}
+
+
+// =====================================================================
+// Padrón: cobrar, tomas nuevas, bajas y columnas de cada año
+// El padrón guarda por año dos columnas: «recibo» y el año (monto pagado en ese año).
+// =====================================================================
+
+const COL_TOMA = 1, COL_BARRIO = 2, COL_X = 3, COL_Y = 4, COL_FUENTE = 5, COL_NOMBRE = 6, COL_APELLIDO = 7, COL_TIPO = 8;
+const ESTADOS = ['Anualidad', 'Corte', 'Comunidad', 'Baja'];
+
+function hoyTexto_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+
+function columnasAnio_(sh) {
+  const enc = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  const out = {};
+  for (let i = 1; i < enc.length; i++) {
+    const m = String(enc[i]).match(/(20\d\d)/);
+    if (m && /recibo/i.test(enc[i - 1])) out[m[1]] = { recibo: i, monto: i + 1 }; // 1-based
+  }
+  return out;
+}
+
+function filaDeToma_(sh, toma) {
+  const col = sh.getRange(1, COL_TOMA, sh.getLastRow(), 1).getDisplayValues();
+  for (let i = 1; i < col.length; i++) if (String(col[i][0]).trim() === String(toma).trim()) return i + 1;
+  return 0;
+}
+
+function hojaOCrear_(nombre, encabezados) {
+  const ss = libro_();
+  let h = ss.getSheetByName(nombre);
+  if (!h) {
+    h = ss.insertSheet(nombre);
+    h.getRange(1, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight('bold').setBackground('#cfeaf0');
+    h.setFrozenRows(1);
+  }
+  return h;
+}
+
+function bitacora_(quien, accion, toma, detalle) {
+  hojaOCrear_('Cambios', ['Fecha', 'Anotó', 'Acción', 'Toma', 'Detalle'])
+    .appendRow([new Date(), limpiaTexto_(quien, 60), accion, String(toma || ''), limpiaTexto_(detalle, 400)]);
+}
+
+function prepararAnio_(anio) {
+  if (!(anio >= 2020 && anio <= 2100)) return { ok: false, error: 'año inválido' };
+  const sh = hojaPadron_();
+  const cols = columnasAnio_(sh);
+  if (cols[anio]) return { ok: true, ya: true };
+  const anios = Object.keys(cols).map(Number).sort();
+  const ultimo = anios.length ? cols[anios[anios.length - 1]].monto : COL_TIPO + 1;
+  sh.insertColumnsAfter(ultimo, 2);
+  sh.getRange(1, ultimo + 1, 1, 2).setValues([['recibo', String(anio)]]).setFontWeight('bold');
+  bitacora_('sistema', 'Columnas del año', '', 'Se agregaron «recibo» y «' + anio + '» después de la columna ' + ultimo);
+  return { ok: true, anio: anio };
+}
+
+function prepararAnio2027() { return prepararAnio_(2027); }
+
+function cobrar_(b) {
+  const sh = hojaPadron_();
+  const fila = filaDeToma_(sh, b.toma);
+  if (!fila) return { ok: false, error: 'no encontré la toma ' + b.toma };
+  const anio = Number(b.anio);
+  let cols = columnasAnio_(sh)[anio];
+  if (!cols) { prepararAnio_(anio); cols = columnasAnio_(sh)[anio]; }
+  if (!cols) return { ok: false, error: 'no hay columnas para ' + anio };
+  const monto = Math.round(Number(b.monto) * 100) / 100;
+  if (!(monto > 0)) return { ok: false, error: 'falta el monto' };
+  const recibo = String(b.recibo || '').trim();
+  if (!/^\d+$/.test(recibo)) return { ok: false, error: 'el número de recibo debe ser solo números' };
+  const tipo = String(sh.getRange(fila, COL_TIPO).getDisplayValue()).trim();
+  if (/^baja$/i.test(tipo)) return { ok: false, error: 'esa toma está dada de baja' };
+
+  const celdaMonto = sh.getRange(fila, cols.monto), celdaRecibo = sh.getRange(fila, cols.recibo);
+  const antes = String(celdaMonto.getDisplayValue()).replace(/[$,]/g, '').trim();
+  const previo = /^\d+(\.\d+)?$/.test(antes) && /^\d+$/.test(String(celdaRecibo.getDisplayValue()).trim()) ? Number(antes) : 0;
+  const notaVieja = [celdaRecibo.getDisplayValue(), celdaMonto.getDisplayValue()].filter((v) => v && !/^[\d.$,\s]+$/.test(v)).join(' · ');
+  const total = previo + monto;
+  celdaRecibo.setValue(recibo);
+  celdaMonto.setValue(total);
+  const conceptos = (b.conceptos || []).map(String);
+  if (/^corte$/i.test(tipo) || conceptos.indexOf('Reconexión') >= 0) sh.getRange(fila, COL_TIPO).setValue('Anualidad');
+
+  const nombre = (sh.getRange(fila, COL_NOMBRE).getDisplayValue() + ' ' + sh.getRange(fila, COL_APELLIDO).getDisplayValue()).trim();
+  const pagos = hojaOCrear_('Pagos', ['# Toma', 'Año', 'Fecha', 'Tipo', '#Recibo', 'Monto', 'Anotó', 'Nota']);
+  if (!pagos.getRange(1, 7).getDisplayValue()) pagos.getRange(1, 7, 1, 2).setValues([['Anotó', 'Nota']]);
+  pagos.appendRow([String(b.toma), anio, hoyTexto_(), conceptos.join(' + ') || 'Anualidad', recibo, monto, limpiaTexto_(b.registro, 60), limpiaTexto_(b.nota, 200)]);
+  bitacora_(b.registro, 'Cobro', b.toma, anio + ': ' + (conceptos.join(' + ') || 'Anualidad') + ' $' + monto + ' recibo ' + recibo +
+    (previo ? ' (ya tenía $' + previo + ')' : '') + (notaVieja ? ' · nota que había: ' + notaVieja : ''));
+  return { ok: true, toma: String(b.toma), nombre: nombre, anio: anio, monto: monto, total: total, recibo: recibo, fecha: hoyTexto_() };
+}
+
+function nuevaToma_(b) {
+  const sh = hojaPadron_();
+  const nombre = limpiaTexto_(b.nombre, 60), apellido = limpiaTexto_(b.apellido, 60);
+  if (!nombre) return { ok: false, error: 'falta el nombre' };
+  const recibo = String(b.recibo || '').trim();
+  if (!/^\d+$/.test(recibo)) return { ok: false, error: 'el número de recibo debe ser solo números' };
+  const monto = Math.round(Number(b.monto) * 100) / 100;
+  if (!(monto > 0)) return { ok: false, error: 'falta el monto' };
+  const anio = Number(b.anio);
+  let cols = columnasAnio_(sh)[anio];
+  if (!cols) { prepararAnio_(anio); cols = columnasAnio_(sh)[anio]; }
+  const numeros = sh.getRange(2, COL_TOMA, Math.max(sh.getLastRow() - 1, 1), 1).getDisplayValues().map((r) => parseInt(r[0], 10)).filter((n) => n > 0);
+  const toma = (numeros.length ? Math.max.apply(null, numeros) : 0) + 1;
+  const fila = new Array(sh.getLastColumn()).fill('');
+  fila[COL_TOMA - 1] = toma;
+  fila[COL_BARRIO - 1] = limpiaTexto_(b.barrio, 40);
+  if (isFinite(Number(b.lng)) && b.lng !== '' && b.lng != null) fila[COL_X - 1] = Number(b.lng);
+  if (isFinite(Number(b.lat)) && b.lat !== '' && b.lat != null) fila[COL_Y - 1] = Number(b.lat);
+  fila[COL_FUENTE - 1] = limpiaTexto_(b.fuente || 'Potable', 20);
+  fila[COL_NOMBRE - 1] = nombre;
+  fila[COL_APELLIDO - 1] = apellido;
+  fila[COL_TIPO - 1] = 'Anualidad';
+  fila[cols.recibo - 1] = recibo;
+  fila[cols.monto - 1] = monto;
+  // Se inserta justo después de la última toma numerada, antes de los renglones sueltos del final
+  let ultimaFila = 1;
+  const colA = sh.getRange(1, COL_TOMA, sh.getLastRow(), 1).getDisplayValues();
+  for (let i = 1; i < colA.length; i++) if (parseInt(colA[i][0], 10) > 0) ultimaFila = i + 1;
+  sh.insertRowAfter(ultimaFila);
+  sh.getRange(ultimaFila + 1, 1, 1, fila.length).setValues([fila]);
+  const pagos = hojaOCrear_('Pagos', ['# Toma', 'Año', 'Fecha', 'Tipo', '#Recibo', 'Monto', 'Anotó', 'Nota']);
+  pagos.appendRow([String(toma), anio, hoyTexto_(), 'Toma nueva + Anualidad', recibo, monto, limpiaTexto_(b.registro, 60), limpiaTexto_(b.nota, 200)]);
+  bitacora_(b.registro, 'Toma nueva', toma, nombre + ' ' + apellido + ' · ' + fila[COL_BARRIO - 1] + ' · $' + monto + ' recibo ' + recibo);
+  return { ok: true, toma: String(toma), nombre: (nombre + ' ' + apellido).trim(), anio: anio, monto: monto, total: monto, recibo: recibo, fecha: hoyTexto_() };
+}
+
+function estadoToma_(b) {
+  const nuevo = ESTADOS.filter((e) => e.toLowerCase() === String(b.nuevo || '').toLowerCase())[0];
+  if (!nuevo) return { ok: false, error: 'estado desconocido' };
+  const motivo = limpiaTexto_(b.motivo, 300);
+  if (!motivo) return { ok: false, error: 'falta el motivo' };
+  const sh = hojaPadron_();
+  const fila = filaDeToma_(sh, b.toma);
+  if (!fila) return { ok: false, error: 'no encontré la toma ' + b.toma };
+  const celda = sh.getRange(fila, COL_TIPO);
+  const antes = celda.getDisplayValue();
+  celda.setValue(nuevo);
+  bitacora_(b.registro, 'Estado', b.toma, (antes || '—') + ' → ' + nuevo + ' · ' + motivo);
+  return { ok: true, toma: String(b.toma), antes: antes, ahora: nuevo };
+}
+
+// Corregir nombre, barrio, fuente o ubicación de una toma (solo los campos que vengan)
+function editarToma_(b) {
+  const sh = hojaPadron_();
+  const fila = filaDeToma_(sh, b.toma);
+  if (!fila) return { ok: false, error: 'no encontré la toma ' + b.toma };
+  const campos = { nombre: COL_NOMBRE, apellido: COL_APELLIDO, barrio: COL_BARRIO, fuente: COL_FUENTE, lng: COL_X, lat: COL_Y };
+  const cambios = [];
+  Object.keys(campos).forEach((k) => {
+    if (b[k] === undefined || b[k] === null) return;
+    const celda = sh.getRange(fila, campos[k]);
+    const antes = celda.getDisplayValue();
+    let v = (k === 'lat' || k === 'lng') ? (b[k] === '' ? '' : Number(b[k])) : limpiaTexto_(b[k], 60);
+    if ((k === 'lat' || k === 'lng') && v !== '' && !isFinite(v)) return;
+    if (String(antes) === String(v)) return;
+    celda.setValue(v);
+    cambios.push(k + ': ' + (antes || '—') + ' → ' + (v === '' ? '—' : v));
+  });
+  if (cambios.length) bitacora_(b.registro, 'Corrección', b.toma, cambios.join(' · '));
+  return { ok: true, toma: String(b.toma), cambios: cambios.length };
 }

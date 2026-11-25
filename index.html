@@ -9,12 +9,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261125c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126">
 </head>
 <body>
 <div class="ola-top">
   <div class="dentro">
     <span class="etiqueta" id="et-anio">Anualidad</span>
+    <div class="filtros anios-hero" id="anios"></div>
     <h1>¿Cómo vamos con el agua?</h1>
     <p>Lo que lleva cobrado el Comité, barrio por barrio, y lo que falta por resolver. Para que todo el comité vea lo mismo.</p>
   </div>
@@ -81,8 +82,9 @@
 
   <section>
     <div class="tarjeta">
-      <h2>Las tomas en el mapa</h2>
-      <p class="chico">Cada punto es una toma del padrón. Pasa el dedo o el ratón para ver de quién es.</p>
+      <div class="resumen-linea" style="margin-bottom:4px"><h2 style="margin:0">Las tomas en el mapa</h2>
+        <a class="boton" style="margin-left:auto" href="mapa.html">🗺 Abrir el mapa con filtros y satélite</a></div>
+      <p class="chico">Cada punto es una toma del padrón. En el mapa grande puedes filtrar a quién debe, buscar, ver la ficha y cómo llegar.</p>
       <div class="mapa-caja" id="mapa"><div class="globo" id="globo"></div></div>
       <div class="leyenda">
         <span><i style="background:#2a9bb0"></i>Pagada</span>
@@ -110,16 +112,18 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261125c"></script>
-<script src="js/padron-copia.js?v=20261125c"></script>
-<script src="js/agua.js?v=20261125c"></script>
+<script src="js/config.js?v=20261126"></script>
+<script src="js/padron-copia.js?v=20261126"></script>
+<script src="js/agua.js?v=20261126"></script>
 <script>
 (async function () {
   const A = window.AGUA;
   A.pintarMarco('index.html');
   document.getElementById('olas').outerHTML = A.OLAS;
-  const datos = await A.cargar();
+  const pedido = new URLSearchParams(location.search).get('anio');
+  const datos = await A.cargar({ anio: pedido });
   const P = datos.padron, T = P.tot;
+  document.getElementById('anios').innerHTML = P.anios.map((a) => '<a class="chip" aria-pressed="' + (a.anio === P.actual) + '" href="?anio=' + a.anio + '">' + a.anio + '</a>').join('');
   const $ = (id) => document.getElementById(id);
 
   $('et-anio').textContent = 'Anualidad ' + P.actual;
@@ -138,8 +142,8 @@
   const caja = A.cuentasDeCaja(P, datos.caja);
   $('d-caja').textContent = A.pesos(caja.saldo);
   $('d-caja-l').textContent = caja.corte ? 'en caja' : 'cobrado en cuotas (falta que la tesorera cuente la caja)';
-  $('d-debe').textContent = T.debe;
-  $('d-debe-l').textContent = T.debe === 1 ? 'toma sin pagar' : 'tomas sin pagar · ' + P.deudores.length + ' personas';
+  $('d-debe').textContent = T.conAdeudo;
+  $('d-debe-l').textContent = (T.conAdeudo === 1 ? 'toma con adeudo' : 'tomas con adeudo') + ' · ' + P.deudores.length + ' personas';
   $('d-pend').textContent = T.aclarar + T.parcial + P.sueltos.length;
   $('d-corte').textContent = T.cortada;
 
@@ -147,14 +151,14 @@
   $('barrios').innerHTML = P.barrios.map((b) => {
     const w = (n) => (b.total ? (n / b.total) * 100 : 0).toFixed(1) + '%';
     const pag = b.pagada + b.parcial;
-    return '<a class="barrio" href="adeudos.html?barrio=' + encodeURIComponent(b.nombre) + '">' +
+    return '<a class="barrio" href="mapa.html?ver=debe&barrio=' + encodeURIComponent(b.nombre) + '">' +
       '<div class="barrio-n">' + A.esc(b.nombre) + '<small>' + pag + ' de ' + b.cobrables + ' pagadas' + (b.debe ? ' · ' + b.debe + ' sin pagar' : '') + '</small></div>' +
       '<div class="tubo"><i class="p" style="width:' + w(pag) + '"></i><i class="d" style="width:' + w(b.debe) + '"></i><i class="a" style="width:' + w(b.aclarar) + '"></i></div>' +
       '<div class="barrio-pct">' + b.pct + '%</div></a>';
   }).join('');
 
   // Mapa
-  const con = P.tomas.filter((t) => isFinite(t.x) && isFinite(t.y));
+  const con = P.tomas.filter((t) => isFinite(t.x) && isFinite(t.y) && t.estado !== 'baja');
   const xs = con.map((t) => t.x), ys = con.map((t) => t.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const W = 1000, pad = 40;
@@ -162,7 +166,7 @@
   const escala = (W - 2 * pad) / ((maxX - minX) * k);
   const H = Math.round((maxY - minY) * escala + 2 * pad);
   const px = (x) => pad + (x - minX) * k * escala, py = (y) => pad + (maxY - y) * escala;
-  const color = { pagada: '#2a9bb0', parcial: '#2a9bb0', debe: '#b4503a', aclarar: '#e0b23a', cortada: '#9aa7ad', exenta: '#9aa7ad' };
+  const color = { pagada: '#2a9bb0', parcial: '#2a9bb0', debe: '#c2412d', aclarar: '#e0a82e', cortada: '#9aa7ad', exenta: '#9aa7ad' };
   const orden = { cortada: 0, exenta: 0, pagada: 1, parcial: 1, aclarar: 2, debe: 3 };
   let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Mapa de las tomas de agua">';
   svg += con.slice().sort((a, b) => orden[a.estado] - orden[b.estado]).map((t) =>
@@ -177,11 +181,11 @@
   caja2.insertAdjacentHTML('afterbegin', svg);
   const globo = $('globo');
   const porToma = Object.fromEntries(P.tomas.map((t) => [t.toma, t]));
-  const textoEstado = { pagada: 'pagada', parcial: 'pagó una parte', debe: 'sin pagar', aclarar: 'por aclarar', cortada: 'cortada', exenta: 'de la comunidad' };
+  const textoEstado = { pagada: 'pagada', parcial: 'pagó una parte', debe: 'sin pagar', aclarar: 'por aclarar', cortada: 'cortada', exenta: 'de la comunidad', baja: 'dada de baja' };
   const mostrar = (ev) => {
     const c = ev.target.closest('.punto');
     if (!c) { globo.classList.remove('ver'); return; }
-    const t = porToma[c.dataset.t];
+    const t = porToma[c.dataset.t]; if (ev.type === 'click') { location.href = 'mapa.html?toma=' + t.toma; return; }
     const r = caja2.getBoundingClientRect(), rc = c.getBoundingClientRect();
     globo.innerHTML = '<b>Toma ' + t.toma + '</b> · ' + A.esc(t.nombre) + '<br>' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + textoEstado[t.estado];
     globo.style.left = Math.min(Math.max(rc.left - r.left + rc.width / 2, 110), r.width - 110) + 'px';

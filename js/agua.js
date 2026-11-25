@@ -18,7 +18,7 @@
 
   // Columnas del padrón (pestaña Padrón_agua_2024)
   const COL = { toma: 0, barrio: 1, x: 2, y: 3, fuente: 4, nombre: 5, apellido: 6, tipo: 7 };
-  const NOTAS_DESDE = 8, NOTAS_HASTA = 15; // más allá hay listas de validación
+  const NOTAS_DESDE = 8, NOTAS_HASTA = 22; // de la X en adelante hay listas de validación
 
   function columnasDeAnio(encabezado) {
     const anios = [];
@@ -35,14 +35,30 @@
     return t.replace(/\bA La\b/, 'a la').replace(/\bLos Migueles\b/i, 'Los Mígueles');
   }
 
+  const vencido = (anio, hoy) => hoy > new Date(anio, C.VENCE_MES - 1, C.VENCE_DIA, 23, 59);
+
+  // Año que se muestra: el pedido, o el del calendario si ya tiene columnas, o el último con columnas antes de hoy.
+  function anioAMostrar(anios, hoy, pedido) {
+    const lista = anios.map((a) => a.anio);
+    if (pedido && lista.includes(+pedido)) return +pedido;
+    const y = hoy.getFullYear();
+    if (lista.includes(y)) return y;
+    const antes = lista.filter((a) => a <= y);
+    return antes.length ? antes[antes.length - 1] : (lista[0] || y);
+  }
+
   // ---------- interpretación ----------
-  function interpretar(filas, hoy) {
+  // estados por toma: pagada, parcial, debe, aclarar, cortada, exenta, baja
+  function interpretar(filas, hoy, pedido) {
     hoy = hoy || new Date();
     const enc = filas[0] || [];
     const anios = columnasDeAnio(enc);
-    const actual = anios.length ? anios[anios.length - 1].anio : hoy.getFullYear();
-    const previo = anios.length > 1 ? anios[anios.length - 2].anio : null;
-    const vencio = hoy > new Date(actual, C.VENCE_MES - 1, C.VENCE_DIA, 23, 59);
+    const actual = anioAMostrar(anios, hoy, pedido);
+    const idx = anios.findIndex((a) => a.anio === actual);
+    const previo = idx > 0 ? anios[idx - 1].anio : null;
+    const vencio = vencido(actual, hoy);
+    const colsAnio = new Set(anios.flatMap((a) => [a.recibo, a.monto]));
+    const desde = C.ADEUDO_DESDE || actual;
 
     const tomas = [];
     const sueltos = []; // renglones con nombre pero sin número de toma
@@ -67,11 +83,14 @@
         notas: []
       };
       for (let k = NOTAS_DESDE; k <= NOTAS_HASTA && k < r.length; k++) {
+        if (colsAnio.has(k)) continue;
         const v = g(k);
         if (v && !esNumero(v) && !/^pendiente$/i.test(v)) t.notas.push(v);
       }
+      // las notas escritas en las columnas de un año (p. ej. «no existe esta toma») también cuentan
+      anios.forEach((a) => [a.recibo, a.monto].forEach((k) => { const v = g(k); if (v && !esNumero(v)) t.notas.push(v); }));
       if (/^pendiente$/i.test(g(8))) t.marcaPendiente = true;
-      if (t.tipo && !/^(anualidad|corte|comunidad|instalaci[oó]n|potable)$/i.test(t.tipo)) t.notas.push(t.tipo);
+      if (t.tipo && !/^(anualidad|corte|comunidad|baja|instalaci[oó]n|potable)$/i.test(t.tipo)) t.notas.push(t.tipo);
 
       anios.forEach((a) => {
         const rec = g(a.recibo), mon = g(a.monto);
@@ -86,18 +105,30 @@
       t.revisar = /revisar/.test(notas);
       t.comunidad = /comunidad/i.test(t.tipo);
       t.cortada = /^corte$/i.test(t.tipo);
+      t.baja = /^baja$/i.test(t.tipo);
 
       if (!t.toma) { sueltos.push(t); continue; }
 
       const p = t.pagos[actual] || { pagado: false, monto: 0 };
-      if (p.pagado) t.estado = p.monto < C.CUOTA ? 'parcial' : 'pagada';
+      if (t.baja) t.estado = 'baja';
+      else if (p.pagado) t.estado = p.monto < C.CUOTA ? 'parcial' : 'pagada';
       else if (t.comunidad) t.estado = 'exenta';
       else if (t.cortada) t.estado = 'cortada';
       else if (t.noExiste || t.pideCorte || t.revisar) t.estado = 'aclarar';
       else t.estado = 'debe';
 
-      if (t.estado === 'debe') t.adeudo = C.CUOTA + (vencio ? C.RECARGO : 0);
-      if (previo && t.estado !== 'exenta' && t.estado !== 'cortada' && !t.pagos[previo].pagado && !t.comunidad) t.sinReciboPrevio = true;
+      // Adeudo: cada año sin pagar desde ADEUDO_DESDE hasta el que se ve (no antes del primer pago de la toma).
+      t.adeudos = [];
+      if (!t.baja && !t.comunidad && !t.cortada && t.estado !== 'aclarar') {
+        const primerPago = anios.find((a) => t.pagos[a.anio].pagado);
+        const inicio = Math.max(desde, primerPago && primerPago.anio > desde ? primerPago.anio : desde);
+        anios.filter((a) => a.anio >= inicio && a.anio <= actual && a.anio <= hoy.getFullYear() && !t.pagos[a.anio].pagado).forEach((a) => {
+          t.adeudos.push({ anio: a.anio, cuota: C.CUOTA, recargo: vencido(a.anio, hoy) ? C.RECARGO : 0 });
+        });
+      }
+      t.adeudo = t.adeudos.reduce((s, a) => s + a.cuota + a.recargo, 0);
+      t.lat = t.y; t.lng = t.x;
+      if (previo && !['exenta', 'cortada', 'baja'].includes(t.estado) && !t.pagos[previo].pagado && previo < desde) t.sinReciboPrevio = true;
       tomas.push(t);
     }
 
@@ -105,17 +136,18 @@
     const cuenta = (e) => tomas.filter((t) => t.estado === e).length;
     const tot = {
       pagada: cuenta('pagada'), parcial: cuenta('parcial'), debe: cuenta('debe'),
-      aclarar: cuenta('aclarar'), cortada: cuenta('cortada'), exenta: cuenta('exenta')
+      aclarar: cuenta('aclarar'), cortada: cuenta('cortada'), exenta: cuenta('exenta'), baja: cuenta('baja')
     };
     tot.cobrables = tot.pagada + tot.parcial + tot.debe;
     tot.alCorriente = tot.pagada + tot.parcial;
     tot.pct = tot.cobrables ? Math.round((tot.alCorriente / tot.cobrables) * 100) : 0;
     tot.cobrado = tomas.concat(sueltos).reduce((s, t) => s + ((t.pagos[actual] || {}).monto || 0), 0);
     tot.porCobrar = tomas.reduce((s, t) => s + (t.adeudo || 0), 0);
+    tot.conAdeudo = tomas.filter((t) => t.adeudo > 0).length;
 
-    // Barrios
+    // Barrios (sin las bajas)
     const mapa = {};
-    tomas.forEach((t) => {
+    tomas.filter((t) => t.estado !== 'baja').forEach((t) => {
       const b = (mapa[t.barrio] = mapa[t.barrio] || { nombre: t.barrio, pagada: 0, parcial: 0, debe: 0, aclarar: 0, cortada: 0, exenta: 0, total: 0, xs: [], ys: [] });
       b[t.estado]++; b.total++;
       if (isFinite(t.x) && isFinite(t.y)) { b.xs.push(t.x); b.ys.push(t.y); }
@@ -128,7 +160,7 @@
 
     // Deudores agrupados por persona
     const porPersona = {};
-    tomas.filter((t) => t.estado === 'debe').forEach((t) => {
+    tomas.filter((t) => t.adeudo > 0).forEach((t) => {
       const k = sinAcentos(t.nombre);
       const p = (porPersona[k] = porPersona[k] || { nombre: t.nombre, tomas: [], barrios: new Set(), adeudo: 0 });
       p.tomas.push(t); p.barrios.add(t.barrio); p.adeudo += t.adeudo;
@@ -136,7 +168,17 @@
     const deudores = Object.values(porPersona).map((p) => ((p.barrios = [...p.barrios]), p))
       .sort((a, b) => b.adeudo - a.adeudo || a.nombre.localeCompare(b.nombre, 'es'));
 
-    return { anios, actual, previo, vencio, tomas, sueltos, ingresos, tot, barrios, deudores };
+    const listaBarrios = [...new Set(tomas.map((t) => t.barrio).filter((b) => b !== 'Sin barrio'))].sort((a, b) => a.localeCompare(b, 'es'));
+    return { anios, actual, previo, vencio, tomas, sueltos, ingresos, tot, barrios, deudores, listaBarrios, desde };
+  }
+
+  // Lo que debe una toma en un año dado (para la tesorería)
+  function cuantoDebe(t, anio, hoy) {
+    hoy = hoy || new Date();
+    const p = t.pagos[anio] || { monto: 0 };
+    const yaPago = p.monto || 0;
+    const cuota = Math.max(0, C.CUOTA - yaPago);
+    return { cuota, recargo: cuota > 0 && vencido(anio, hoy) ? C.RECARGO : 0 };
   }
 
   // ---------- carga ----------
@@ -162,12 +204,12 @@
       try {
         const d = await pedir({ accion: 'datos', fresco: opc.fresco ? '1' : '' });
         if (d && d.ok && d.padron && d.padron.length > 1) {
-          return { fuente: 'vivo', fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron), caja: d.caja || null };
+          return { fuente: 'vivo', fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron, caja: d.caja || null, cambios: d.cambios || [] };
         }
       } catch (e) { console.warn('El padrón en vivo no respondió; uso la copia.', e); }
     }
     const copia = window.PADRON_COPIA;
-    return { fuente: 'copia', fecha: new Date(copia.fecha + 'T12:00:00'), padron: interpretar(copia.filas), caja: null };
+    return { fuente: 'copia', fecha: new Date(copia.fecha + 'T12:00:00'), padron: interpretar(copia.filas, null, opc.anio), filas: copia.filas, caja: null };
   }
 
   // Cuentas de la caja.
@@ -196,6 +238,7 @@
 
   const PAGINAS = [
     ['index.html', 'Cómo vamos'],
+    ['mapa.html', 'Mapa'],
     ['adeudos.html', 'Adeudos'],
     ['pendientes.html', 'Pendientes'],
     ['reglamento.html', 'Reglamento'],
@@ -230,5 +273,5 @@
     return '<p class="aviso-fuente"><i></i>Copia del padrón del ' + fechaLarga(datos.fecha) + (C.SCRIPT_URL ? ' (la hoja en vivo no respondió)' : '') + '</p>';
   }
 
-  window.AGUA = { interpretar, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
+  window.AGUA = { interpretar, cuantoDebe, vencido, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
 })();

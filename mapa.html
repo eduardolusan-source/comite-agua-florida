@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tomas de La Florida</title>
+<meta name="description" content="Mapa y buscador de las tomas de agua de La Florida: quién debe, dónde está y cómo llegar.">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="css/estilo.css?v=20261126">
+</head>
+<body>
+<div class="ola-top">
+  <div class="dentro">
+    <span class="etiqueta" id="et-anio">Tomas</span>
+    <h1>Las tomas, en el mapa</h1>
+    <p>Busca una toma o una persona, filtra por color y toca un punto para ver su ficha: quién es, qué ha pagado, qué debe y cómo llegar.</p>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main class="ancho">
+  <section class="sube">
+    <div class="tarjeta herramientas">
+      <input class="buscar" id="q" type="search" placeholder="Buscar por nombre o número de toma" autocomplete="off">
+      <div class="filtros" id="cats"></div>
+      <div class="fila-sel">
+        <label>Barrio <select id="barrio"><option value="">Todos</option></select></label>
+        <label>Año <select id="anio"></select></label>
+        <div class="pestanas mini" role="group" id="base">
+          <button data-base="sat" aria-pressed="true">Satélite</button>
+          <button data-base="calles" aria-pressed="false">Calles</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mapa-grid">
+      <div class="mapa-vivo"><div id="mapa"></div></div>
+      <aside class="ficha-toma tarjeta" id="ficha">
+        <p class="vacio" style="padding:20px 6px">Toca un punto del mapa o una toma de la lista para ver su ficha.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section>
+    <div class="tarjeta">
+      <div class="resumen-linea" style="margin-bottom:6px">
+        <h2 style="margin:0" id="lista-t">Tomas</h2>
+        <button class="boton claro no-imprimir" style="margin-left:auto" onclick="window.print()">🖨 Imprimir esta lista (ruta de cobro)</button>
+      </div>
+      <p class="chico" id="lista-sub"></p>
+      <div id="lista"></div>
+      <div id="fuente"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="js/config.js?v=20261126"></script>
+<script src="js/padron-copia.js?v=20261126"></script>
+<script src="js/agua.js?v=20261126"></script>
+<script>
+(async function () {
+  const A = window.AGUA, C = window.AGUA_CONFIG;
+  A.pintarMarco('mapa.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+
+  const CATS = [
+    { k: 'debe', n: 'Con adeudo', c: '#c2412d' },
+    { k: 'aclarar', n: 'Por aclarar', c: '#e0a82e' },
+    { k: 'pagada', n: 'Al corriente', c: '#2a9bb0' },
+    { k: 'cortada', n: 'Cortadas', c: '#6f7d84' },
+    { k: 'exenta', n: 'De la comunidad', c: '#8e6bbf' },
+    { k: 'baja', n: 'Dadas de baja', c: '#ffffff' }
+  ];
+  const COLOR = Object.fromEntries(CATS.map((c) => [c.k, c.c]));
+  const ESTADO_TXT = { pagada: 'Pagada', parcial: 'Pagó una parte', debe: 'Sin pagar', aclarar: 'Por aclarar', cortada: 'Cortada', exenta: 'De la comunidad', baja: 'Dada de baja' };
+  const cat = (t) => t.estado === 'baja' ? 'baja' : t.adeudo > 0 ? 'debe' : t.estado === 'aclarar' ? 'aclarar' :
+    (t.estado === 'pagada' || t.estado === 'parcial') ? 'pagada' : t.estado === 'cortada' ? 'cortada' : 'exenta';
+
+  // filtros: por omisión todo menos las bajas
+  const activos = new Set(params.get('ver') ? params.get('ver').split(',') : ['debe', 'aclarar', 'pagada', 'cortada', 'exenta']);
+  let datos = await A.cargar();
+  let P = datos.padron;
+  let elegida = null;
+
+  // ---------- mapa ----------
+  const capas = {
+    sat: L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 18, attribution: 'Imágenes © Esri' }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 18, opacity: .8 })
+    ]),
+    calles: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20, maxNativeZoom: 19, attribution: '© OpenStreetMap' })
+  };
+  const mapa = L.map('mapa', { zoomControl: true, attributionControl: true, layers: [capas.sat] });
+  const grupo = L.layerGroup().addTo(mapa);
+  const marcas = {};
+  $('base').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    Object.values(capas).forEach((c) => mapa.removeLayer(c));
+    capas[b.dataset.base].addTo(mapa);
+    document.querySelectorAll('#base button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  });
+
+  // ---------- controles ----------
+  P.listaBarrios.forEach((b) => $('barrio').insertAdjacentHTML('beforeend', '<option>' + A.esc(b) + '</option>'));
+  if (params.get('barrio')) $('barrio').value = params.get('barrio');
+  P.anios.forEach((a) => $('anio').insertAdjacentHTML('beforeend', '<option' + (a.anio === P.actual ? ' selected' : '') + '>' + a.anio + '</option>'));
+  if (params.get('q')) $('q').value = params.get('q');
+
+  $('anio').addEventListener('change', () => { P = A.interpretar(datos.filas, null, $('anio').value); pintar(true); if (elegida) ficha(elegida); });
+  $('barrio').addEventListener('change', () => pintar(true));
+  $('q').addEventListener('input', () => pintar(false));
+  $('cats').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const k = b.dataset.k;
+    if (b.dataset.solo) { activos.clear(); activos.add(k); }
+    else if (activos.has(k)) activos.delete(k); else activos.add(k);
+    pintar(true);
+  });
+
+  function filtradas() {
+    const q = A.sinAcentos($('q').value.trim()), bar = $('barrio').value;
+    return P.tomas.filter((t) => activos.has(cat(t)) && (!bar || t.barrio === bar) &&
+      (!q || t.toma === q || A.sinAcentos(t.nombre).includes(q)));
+  }
+
+  function pintar(encuadrar) {
+    $('et-anio').textContent = 'Tomas · ' + P.actual;
+    // chips con conteo
+    const bar = $('barrio').value;
+    const base = P.tomas.filter((t) => !bar || t.barrio === bar);
+    $('cats').innerHTML = CATS.map((c) => {
+      const n = base.filter((t) => cat(t) === c.k).length;
+      return '<button class="chip chip-color" data-k="' + c.k + '" aria-pressed="' + activos.has(c.k) + '"><i style="background:' + c.c + '"></i>' + c.n + ' <b>' + n + '</b></button>';
+    }).join('') + '<button class="chip" data-k="debe" data-solo="1" title="Ver solo quién debe">Solo quién debe</button>';
+
+    const lista = filtradas();
+    grupo.clearLayers();
+    Object.keys(marcas).forEach((k) => delete marcas[k]);
+    const orden = { baja: 0, exenta: 1, cortada: 1, pagada: 2, aclarar: 3, debe: 4 };
+    lista.filter((t) => isFinite(t.lat) && isFinite(t.lng)).sort((a, b) => orden[cat(a)] - orden[cat(b)]).forEach((t) => {
+      const k = cat(t);
+      const m = L.circleMarker([t.lat, t.lng], {
+        radius: k === 'debe' ? 9 : 7, color: k === 'baja' ? '#6f7d84' : '#fff', weight: 2, fillColor: COLOR[k], fillOpacity: k === 'baja' ? .6 : .95
+      }).addTo(grupo);
+      m.bindTooltip('<b>' + t.toma + '</b> ' + A.esc(t.nombre), { direction: 'top', offset: [0, -6] });
+      m.on('click', () => ficha(t.toma));
+      marcas[t.toma] = m;
+    });
+    if (encuadrar || ($('q').value.trim() && lista.length > 1)) {
+      const pts = lista.filter((t) => isFinite(t.lat)).map((t) => [t.lat, t.lng]);
+      if (pts.length) mapa.fitBounds(pts, { padding: [30, 30], maxZoom: 18 });
+    } else if (lista.length === 1 && isFinite(lista[0].lat)) {
+      mapa.setView([lista[0].lat, lista[0].lng], 19); ficha(lista[0].toma);
+    }
+    resaltar();
+
+    // lista
+    const conAdeudo = lista.filter((t) => t.adeudo > 0);
+    $('lista-t').textContent = lista.length + (lista.length === 1 ? ' toma' : ' tomas');
+    $('lista-sub').textContent = (bar ? bar + ' · ' : '') + (conAdeudo.length ? conAdeudo.length + ' con adeudo, ' + A.pesos(conAdeudo.reduce((s, t) => s + t.adeudo, 0)) + ' por cobrar' : 'nadie con adeudo en esta selección') +
+      (lista.some((t) => !isFinite(t.lat)) ? ' · ' + lista.filter((t) => !isFinite(t.lat)).length + ' sin ubicación' : '');
+    const ord = lista.slice().sort((a, b) => b.adeudo - a.adeudo || a.barrio.localeCompare(b.barrio, 'es') || (+a.toma) - (+b.toma));
+    $('lista').innerHTML = ord.length ? ord.slice(0, 400).map((t) =>
+      '<button class="ficha fila-toma" data-t="' + t.toma + '"><div class="quien"><i class="punto-c" style="background:' + COLOR[cat(t)] + '"></i><span class="toma">' + t.toma + '</span> ' + A.esc(t.nombre) + '</div>' +
+      '<div class="det">' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + ESTADO_TXT[t.estado] + (isFinite(t.lat) ? '' : ' · sin ubicación') + '</div>' +
+      '<div class="monto num">' + (t.adeudo ? A.pesos(t.adeudo) + '<small>' + t.adeudos.map((a) => a.anio).join(', ') + '</small>' : '') + '</div></button>').join('')
+      : '<p class="vacio">Ninguna toma coincide. Prueba quitando filtros.</p>';
+  }
+
+  $('lista').addEventListener('click', (e) => {
+    const b = e.target.closest('.fila-toma'); if (!b) return;
+    const t = P.tomas.find((x) => x.toma === b.dataset.t);
+    if (isFinite(t.lat)) { mapa.setView([t.lat, t.lng], 19); document.querySelector('.mapa-grid').scrollIntoView({ behavior: 'smooth' }); }
+    ficha(t.toma);
+  });
+
+  function resaltar() {
+    Object.entries(marcas).forEach(([k, m]) => m.setStyle({ weight: k === elegida ? 4 : 2, color: k === elegida ? '#0d3550' : (cat(P.tomas.find((t) => t.toma === k)) === 'baja' ? '#6f7d84' : '#fff') }));
+    if (elegida && marcas[elegida]) marcas[elegida].bringToFront();
+  }
+
+  function ficha(toma) {
+    elegida = toma;
+    const t = P.tomas.find((x) => x.toma === toma);
+    if (!t) return;
+    const k = cat(t);
+    const otras = P.tomas.filter((x) => x !== t && A.sinAcentos(x.nombre) === A.sinAcentos(t.nombre));
+    const anios = P.anios.map((a) => {
+      const p = t.pagos[a.anio], deb = t.adeudos.find((d) => d.anio === a.anio);
+      return '<tr><td>' + a.anio + '</td><td>' + (p.pagado ? '✓ ' + A.pesos(p.monto) : deb ? '<b style="color:#c2412d">debe ' + A.pesos(deb.cuota + deb.recargo) + '</b>' : '—') +
+        '</td><td class="chico">' + (p.pagado ? 'recibo ' + A.esc(p.recibo) : '') + '</td></tr>';
+    }).join('');
+    const ll = isFinite(t.lat) ? t.lat.toFixed(6) + ', ' + t.lng.toFixed(6) : '';
+    $('ficha').innerHTML =
+      '<div class="ft-cab"><span class="ft-num">' + t.toma + '</span><span class="pill" style="background:' + COLOR[k] + (k === 'baja' ? ';color:#333;border:1px solid #aaa' : '') + '">' + ESTADO_TXT[t.estado] + (t.adeudo && t.estado !== 'debe' ? ' · debe atrasado' : '') + '</span></div>' +
+      '<h3 style="margin:6px 0 2px">' + A.esc(t.nombre) + '</h3>' +
+      '<p class="chico" style="margin:0 0 10px">' + A.esc(t.barrio) + ' · agua ' + A.esc(t.fuente).toLowerCase() + ' · renglón ' + t.fila + ' del padrón</p>' +
+      (t.adeudo ? '<div class="ft-debe">Debe <b>' + A.pesos(t.adeudo) + '</b><span>' + t.adeudos.map((a) => a.anio + ': $' + a.cuota + (a.recargo ? ' + $' + a.recargo + ' recargo' : '')).join(' · ') + '</span></div>' : '') +
+      '<table class="ft-anios"><tbody>' + anios + '</tbody></table>' +
+      (t.notas.length ? '<p class="ft-nota">📝 ' + A.esc(t.notas.join(' · ')) + '</p>' : '') +
+      (otras.length ? '<p class="chico" style="margin:8px 0">Otras tomas de esta persona: ' + otras.map((o) => '<a href="#" data-ir="' + o.toma + '">' + o.toma + '</a>').join(', ') + '</p>' : '') +
+      (ll ? '<p class="chico" style="margin:8px 0 4px">📍 ' + ll + '</p><div class="ft-botones"><a class="boton claro" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + t.lat + ',' + t.lng + '">🧭 Cómo llegar</a>' +
+        '<button class="boton claro" type="button" id="copiar">Copiar ubicación</button></div>' : '<p class="chico" style="margin:8px 0">Sin ubicación en el padrón. Se puede poner desde la tesorería.</p>') +
+      '<div class="ft-botones"><a class="boton" href="tesoreria.html?accion=cobrar&toma=' + t.toma + '">💵 Registrar pago</a>' +
+      '<a class="boton claro" href="tesoreria.html?accion=toma&toma=' + t.toma + '">✏️ Corregir o dar de baja</a></div>';
+    const cp = $('copiar');
+    if (cp) cp.onclick = () => { try { navigator.clipboard.writeText(ll); cp.textContent = 'Copiada ✓'; } catch (e) { cp.textContent = ll; } };
+    $('ficha').querySelectorAll('[data-ir]').forEach((a) => a.onclick = (e) => {
+      e.preventDefault(); const o = P.tomas.find((x) => x.toma === a.dataset.ir);
+      if (o && isFinite(o.lat)) mapa.setView([o.lat, o.lng], 19); ficha(a.dataset.ir);
+    });
+    resaltar();
+    if (window.innerWidth < 900) $('ficha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  $('fuente').innerHTML = A.avisoFuente(datos);
+  pintar(true);
+  if (params.get('toma')) {
+    const t = P.tomas.find((x) => x.toma === params.get('toma'));
+    if (t) { if (isFinite(t.lat)) mapa.setView([t.lat, t.lng], 19); ficha(t.toma); }
+  }
+})();
+</script>
+</body>
+</html>
