@@ -8,6 +8,11 @@
  * no en este código. Instrucciones completas en INSTALAR.md.
  */
 
+// Id de la hoja PADRÓN AGUA FLORIDA. Así el script funciona igual dentro de la hoja
+// que como proyecto aparte (Google no deja publicar el script ligado desde otra cuenta).
+const PADRON_ID = '18iwStedGeC4zhty_ubLTtdlrmNrzKSvkcP_2IUoKP9I';
+function libro_() { return SpreadsheetApp.openById(PADRON_ID); }
+
 const HOJA_CAJA = 'Caja';
 const HOJA_CONFIG = 'Config';
 const ENCABEZADOS_CAJA = ['Folio', 'Fecha', 'Tipo', 'Concepto', 'Monto', 'Pagado a / pagó', 'Nota', 'Anotó', 'Anotado el', 'Estatus', 'Cuotas del padrón al corte'];
@@ -19,7 +24,7 @@ const CONFIG_INICIAL = [
 
 // ---------- instalación ----------
 function instalar() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = libro_();
   let caja = ss.getSheetByName(HOJA_CAJA);
   if (!caja) {
     caja = ss.insertSheet(HOJA_CAJA);
@@ -47,12 +52,12 @@ function salida_(obj) {
 }
 
 function hojaPadron_() {
-  const ss = SpreadsheetApp.getActive();
+  const ss = libro_();
   return ss.getSheets().filter((h) => /^padr[oó]n/i.test(h.getName()))[0] || ss.getSheets()[0];
 }
 
 function config_() {
-  const cfg = SpreadsheetApp.getActive().getSheetByName(HOJA_CONFIG);
+  const cfg = libro_().getSheetByName(HOJA_CONFIG);
   const o = {};
   if (!cfg) return o;
   cfg.getDataRange().getValues().slice(1).forEach((r) => { if (r[0]) o[String(r[0]).trim()] = r[1]; });
@@ -60,7 +65,7 @@ function config_() {
 }
 
 function ponerConfig_(clave, valor) {
-  const cfg = SpreadsheetApp.getActive().getSheetByName(HOJA_CONFIG);
+  const cfg = libro_().getSheetByName(HOJA_CONFIG);
   const vals = cfg.getDataRange().getValues();
   for (let i = 1; i < vals.length; i++) {
     if (String(vals[i][0]).trim() === clave) { cfg.getRange(i + 1, 2).setValue(String(valor)); return; }
@@ -79,7 +84,7 @@ function fechaISO_(v) {
 }
 
 function movimientos_() {
-  const caja = SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA);
+  const caja = libro_().getSheetByName(HOJA_CAJA);
   if (!caja || caja.getLastRow() < 2) return [];
   return caja.getRange(2, 1, caja.getLastRow() - 1, ENCABEZADOS_CAJA.length).getValues()
     .filter((r) => r[0])
@@ -150,7 +155,7 @@ function registrar_(b) {
   if (!concepto) return { ok: false, error: 'falta decir qué fue' };
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(b.fecha) ? b.fecha : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-  const caja = SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA) || (instalar(), SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA));
+  const caja = libro_().getSheetByName(HOJA_CAJA) || (instalar(), libro_().getSheetByName(HOJA_CAJA));
   const prefijo = tipo === 'Egreso' ? 'G-' : 'I-';
   const n = movimientos_().filter((m) => m.folio.indexOf(prefijo) === 0)
     .reduce((mx, m) => Math.max(mx, parseInt(m.folio.slice(2), 10) || 0), 0) + 1;
@@ -165,7 +170,7 @@ function registrar_(b) {
 function corte_(b) {
   const monto = Math.round(Number(b.monto) * 100) / 100;
   if (!(monto >= 0) || b.monto === '' || b.monto == null) return { ok: false, error: 'falta cuánto hay' };
-  const caja = SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA) || (instalar(), SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA));
+  const caja = libro_().getSheetByName(HOJA_CAJA) || (instalar(), libro_().getSheetByName(HOJA_CAJA));
   const n = movimientos_().filter((m) => m.folio.indexOf('C-') === 0)
     .reduce((mx, m) => Math.max(mx, parseInt(m.folio.slice(2), 10) || 0), 0) + 1;
   const folio = 'C-' + ('000' + n).slice(-4);
@@ -175,7 +180,7 @@ function corte_(b) {
 }
 
 function anular_(b) {
-  const caja = SpreadsheetApp.getActive().getSheetByName(HOJA_CAJA);
+  const caja = libro_().getSheetByName(HOJA_CAJA);
   const folios = caja.getRange(1, 1, caja.getLastRow(), 1).getValues().map((r) => String(r[0]));
   const i = folios.indexOf(String(b.folio));
   if (i < 1) return { ok: false, error: 'no encontré ese folio' };

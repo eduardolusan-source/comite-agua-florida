@@ -6,7 +6,7 @@ este Apps Script dentro de la hoja **PADRÓN AGUA FLORIDA** (la del Drive del co
 
 Hazlo con la cuenta dueña de la hoja (eduardo.lusan@uaq.edu.mx).
 
-1. Abre la hoja PADRÓN AGUA FLORIDA → menú **Extensiones → Apps Script**.
+1. Con tu cuenta (eduardo.lusan@gmail.com, que puede editar el padrón) abre https://script.new : es un proyecto aparte; el código abre el padrón por su id (`PADRON_ID`). Ligado a la hoja no se pudo publicar desde Gmail.
 2. Borra lo que haya en `Código.gs` y pega todo el contenido de `apps-script/Code.gs`. Guarda (Ctrl+S).
 3. Arriba, en la lista de funciones, elige **instalar** y pulsa **Ejecutar**. Acepta los permisos
    (Google avisa que la app «no está verificada»: Configuración avanzada → Ir a … → Permitir).
