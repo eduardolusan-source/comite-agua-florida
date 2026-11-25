@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agua de La Florida</title>
+<meta name="description" content="Cómo va la captación de la anualidad del agua en La Florida, Arroyo Seco: barrios, adeudos, pendientes y caja del Comité.">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css?v=20261125">
+</head>
+<body>
+<div class="ola-top">
+  <div class="dentro">
+    <span class="etiqueta" id="et-anio">Anualidad</span>
+    <h1>¿Cómo vamos con el agua?</h1>
+    <p>Lo que lleva cobrado el Comité, barrio por barrio, y lo que falta por resolver. Para que todo el comité vea lo mismo.</p>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main>
+  <section class="sube">
+    <div class="tarjeta principal">
+      <div class="anillo">
+        <svg viewBox="0 0 220 220" aria-hidden="true">
+          <defs><linearGradient id="grad-agua" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7fd3e0"/><stop offset="1" stop-color="#17607e"/></linearGradient></defs>
+          <circle class="fondo" cx="110" cy="110" r="92"/>
+          <circle class="lleno" id="arco" cx="110" cy="110" r="92" stroke-dasharray="578" stroke-dashoffset="578"/>
+        </svg>
+        <div class="centro"><b id="pct">—</b><span>de captación</span></div>
+      </div>
+      <div>
+        <p class="frase" id="frase">Cargando el padrón…</p>
+        <div class="cifras">
+          <div><b class="num" id="c-cobrado">—</b><span id="c-cobrado-l">cobrado este año</span></div>
+          <div><b class="num" id="c-falta">—</b><span>falta por cobrar</span></div>
+          <div><b class="num" id="c-tomas">—</b><span>tomas en el padrón</span></div>
+        </div>
+        <div id="fuente"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rejilla r4">
+      <a class="tarjeta dato t-caja" href="tesoreria.html#caja">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M3 11h18M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
+        <b class="num" id="d-caja">—</b><span id="d-caja-l">en caja</span><span class="ir">›</span>
+      </a>
+      <a class="tarjeta dato t-debe" href="adeudos.html">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <b class="num" id="d-debe">—</b><span id="d-debe-l">tomas sin pagar</span><span class="ir">›</span>
+      </a>
+      <a class="tarjeta dato t-pend" href="pendientes.html">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+        <b class="num" id="d-pend">—</b><span>casos por aclarar</span><span class="ir">›</span>
+      </a>
+      <a class="tarjeta dato t-corte" href="pendientes.html#cortadas">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h6M14 12h6M10 8v8M14 8v8"/></svg></div>
+        <b class="num" id="d-corte">—</b><span>tomas cortadas</span><span class="ir">›</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <div class="tarjeta">
+      <h2>Barrio por barrio</h2>
+      <p class="chico">Toca un barrio para ver quién debe ahí.</p>
+      <div id="barrios"></div>
+      <div class="leyenda">
+        <span><i style="background:#2a9bb0"></i>Pagada</span>
+        <span><i style="background:#b4503a;opacity:.75"></i>Sin pagar</span>
+        <span><i style="background:#b98a12;opacity:.6"></i>Por aclarar</span>
+        <span><i style="background:#eaf6f8;border:1px solid #cfeaf0"></i>Cortada o de la comunidad</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="tarjeta">
+      <h2>Las tomas en el mapa</h2>
+      <p class="chico">Cada punto es una toma del padrón. Pasa el dedo o el ratón para ver de quién es.</p>
+      <div class="mapa-caja" id="mapa"><div class="globo" id="globo"></div></div>
+      <div class="leyenda">
+        <span><i style="background:#2a9bb0"></i>Pagada</span>
+        <span><i style="background:#b4503a"></i>Sin pagar</span>
+        <span><i style="background:#e0b23a"></i>Por aclarar</span>
+        <span><i style="background:#9aa7ad"></i>Cortada o de la comunidad</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rejilla r2">
+      <div class="tarjeta">
+        <h3>Fechas que hay que recordar</h3>
+        <p><b>31 de marzo.</b> Último día para pagar la anualidad sin recargo. Después son $100 más y procede el corte (arts. 6 y 10).</p>
+        <p><b>Fugas.</b> Si una fuga no se arregla en una semana, la multa es de $200 (art. 7).</p>
+        <p style="margin:0"><a href="reglamento.html">Consultar el reglamento ›</a></p>
+      </div>
+      <div class="tarjeta">
+        <h3>Lo que cuesta</h3>
+        <p>Anualidad <b>$150</b> · Toma nueva <b>$400</b> más la anualidad del año · Recargo <b>$100</b> · Jornal <b>$350</b> · Técnico <b>$2,000</b> al mes durante 8 meses.</p>
+        <p class="chico" style="margin:0">Cuotas del reglamento aprobado el 20 de septiembre de 2025.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="js/config.js?v=20261125"></script>
+<script src="js/padron-copia.js?v=20261125"></script>
+<script src="js/agua.js?v=20261125"></script>
+<script>
+(async function () {
+  const A = window.AGUA;
+  A.pintarMarco('index.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+  const datos = await A.cargar();
+  const P = datos.padron, T = P.tot;
+  const $ = (id) => document.getElementById(id);
+
+  $('et-anio').textContent = 'Anualidad ' + P.actual;
+  $('pct').textContent = T.pct + '%';
+  requestAnimationFrame(() => setTimeout(() => { $('arco').style.strokeDashoffset = 578 * (1 - T.pct / 100); }, 80));
+  $('frase').innerHTML = '<b>' + T.alCorriente + '</b> de ' + T.cobrables + ' tomas ya pagaron su anualidad de ' + P.actual + '.' +
+    (T.debe ? ' Faltan <b>' + T.debe + '</b>.' : ' ¡Ya pagaron todas!');
+  $('c-cobrado').textContent = A.pesos(T.cobrado);
+  $('c-cobrado-l').textContent = 'cobrado en ' + P.actual;
+  $('c-falta').textContent = A.pesos(T.porCobrar);
+  $('c-tomas').textContent = P.tomas.length;
+  $('fuente').innerHTML = A.avisoFuente(datos) +
+    '<p class="chico" style="margin-top:6px">No cuentan para el porcentaje las tomas cortadas, las de la comunidad (' + T.exenta + ') ni las que están por aclarar.' +
+    (P.vencio ? ' Las que no pagaron llevan ya el recargo de $100.' : '') + '</p>';
+
+  const caja = A.cuentasDeCaja(P, datos.caja);
+  $('d-caja').textContent = A.pesos(caja.saldo);
+  $('d-caja-l').textContent = datos.caja && caja.movimientos.length ? 'en caja' : 'cobrado en cuotas (aún no se anotan gastos)';
+  $('d-debe').textContent = T.debe;
+  $('d-debe-l').textContent = T.debe === 1 ? 'toma sin pagar' : 'tomas sin pagar · ' + P.deudores.length + ' personas';
+  $('d-pend').textContent = T.aclarar + T.parcial + P.sueltos.length;
+  $('d-corte').textContent = T.cortada;
+
+  // Barrios
+  $('barrios').innerHTML = P.barrios.map((b) => {
+    const w = (n) => (b.total ? (n / b.total) * 100 : 0).toFixed(1) + '%';
+    const pag = b.pagada + b.parcial;
+    return '<a class="barrio" href="adeudos.html?barrio=' + encodeURIComponent(b.nombre) + '">' +
+      '<div class="barrio-n">' + A.esc(b.nombre) + '<small>' + pag + ' de ' + b.cobrables + ' pagadas' + (b.debe ? ' · ' + b.debe + ' sin pagar' : '') + '</small></div>' +
+      '<div class="tubo"><i class="p" style="width:' + w(pag) + '"></i><i class="d" style="width:' + w(b.debe) + '"></i><i class="a" style="width:' + w(b.aclarar) + '"></i></div>' +
+      '<div class="barrio-pct">' + b.pct + '%</div></a>';
+  }).join('');
+
+  // Mapa
+  const con = P.tomas.filter((t) => isFinite(t.x) && isFinite(t.y));
+  const xs = con.map((t) => t.x), ys = con.map((t) => t.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = 1000, pad = 40;
+  const k = Math.cos((((minY + maxY) / 2) * Math.PI) / 180); // corrige la longitud a esta latitud
+  const escala = (W - 2 * pad) / ((maxX - minX) * k);
+  const H = Math.round((maxY - minY) * escala + 2 * pad);
+  const px = (x) => pad + (x - minX) * k * escala, py = (y) => pad + (maxY - y) * escala;
+  const color = { pagada: '#2a9bb0', parcial: '#2a9bb0', debe: '#b4503a', aclarar: '#e0b23a', cortada: '#9aa7ad', exenta: '#9aa7ad' };
+  const orden = { cortada: 0, exenta: 0, pagada: 1, parcial: 1, aclarar: 2, debe: 3 };
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Mapa de las tomas de agua">';
+  svg += con.slice().sort((a, b) => orden[a.estado] - orden[b.estado]).map((t) =>
+    '<circle class="punto" data-t="' + t.toma + '" cx="' + px(t.x).toFixed(1) + '" cy="' + py(t.y).toFixed(1) + '" r="' + (t.estado === 'debe' ? 6 : 4.5) +
+    '" fill="' + color[t.estado] + '" stroke="#fff" stroke-width="1.2"/>').join('');
+  P.barrios.filter((b) => b.xs.length > 2).forEach((b) => {
+    const cx = b.xs.reduce((s, v) => s + v, 0) / b.xs.length, cy = b.ys.reduce((s, v) => s + v, 0) / b.ys.length;
+    svg += '<text class="rot" x="' + px(cx).toFixed(0) + '" y="' + (py(cy) - 14).toFixed(0) + '" text-anchor="middle">' + A.esc(b.nombre) + '</text>';
+  });
+  svg += '</svg>';
+  const caja2 = $('mapa');
+  caja2.insertAdjacentHTML('afterbegin', svg);
+  const globo = $('globo');
+  const porToma = Object.fromEntries(P.tomas.map((t) => [t.toma, t]));
+  const textoEstado = { pagada: 'pagada', parcial: 'pagó una parte', debe: 'sin pagar', aclarar: 'por aclarar', cortada: 'cortada', exenta: 'de la comunidad' };
+  const mostrar = (ev) => {
+    const c = ev.target.closest('.punto');
+    if (!c) { globo.classList.remove('ver'); return; }
+    const t = porToma[c.dataset.t];
+    const r = caja2.getBoundingClientRect(), rc = c.getBoundingClientRect();
+    globo.innerHTML = '<b>Toma ' + t.toma + '</b> · ' + A.esc(t.nombre) + '<br>' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + textoEstado[t.estado];
+    globo.style.left = Math.min(Math.max(rc.left - r.left + rc.width / 2, 110), r.width - 110) + 'px';
+    globo.style.top = (rc.top - r.top) + 'px';
+    globo.classList.add('ver');
+  };
+  caja2.addEventListener('mousemove', mostrar);
+  caja2.addEventListener('click', mostrar);
+  caja2.addEventListener('mouseleave', () => globo.classList.remove('ver'));
+})();
+</script>
+</body>
+</html>

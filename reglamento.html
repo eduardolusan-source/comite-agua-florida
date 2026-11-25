@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reglamento del agua</title>
+<meta name="description" content="Reglamento del Agua de La Florida, Arroyo Seco, con buscador y respuestas rápidas.">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css?v=20261125">
+</head>
+<body>
+<div class="ola-top">
+  <div class="dentro">
+    <span class="etiqueta">Aprobado el 20 de septiembre de 2025</span>
+    <h1>¿Qué dice el reglamento?</h1>
+    <p>Escribe tu duda o toca una pregunta. Te decimos la respuesta corta y el artículo donde viene.</p>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main>
+  <section class="sube">
+    <div class="tarjeta">
+      <input class="buscar" id="q" type="search" placeholder="Por ejemplo: multa, fuga, toma nueva, jornal, corte…" autocomplete="off">
+      <div class="preguntas" id="preguntas"></div>
+      <div class="respuesta" id="respuesta"></div>
+      <p class="chico" id="cuenta"></p>
+      <div id="articulos"></div>
+    </div>
+  </section>
+</main>
+
+<script src="js/config.js?v=20261125"></script>
+<script src="js/agua.js?v=20261125"></script>
+<script>
+(function () {
+  const A = window.AGUA;
+  A.pintarMarco('reglamento.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+
+  const CAP = {
+    1: 'Capítulo I · Reglas generales', 3: 'Capítulo II · El Comité de Agua', 5: 'Capítulo III · Costos y gastos',
+    12: 'Capítulo IV · Derechos y obligaciones de los usuarios', 14: 'Capítulo V · Comunicación con la comunidad', 16: 'Capítulo VI · Otras reglas importantes'
+  };
+  const ART = [
+    [1, 'Para qué sirve este reglamento', '<p>Este reglamento explica las reglas para el uso del agua en la comunidad. Sirve para que el agua se use bien, llegue a todos y no se desperdicie.</p>'],
+    [2, 'Quién debe seguir estas reglas', '<p>Todas las personas que reciben agua en la comunidad deben seguir estas reglas.</p>'],
+    [3, 'Quiénes forman el Comité de Agua', '<p>El Comité de Agua está formado por tres personas elegidas por la comunidad. Trabajan por un año con posibilidad de reelección. Los cargos son:</p><ul><li><b>Presidente:</b> avisa de las juntas o avisos importantes.</li><li><b>Tesorero:</b> se encarga del dinero del Comité. Cobra los pagos, da recibos y presenta informes de ingresos y gastos.</li><li><b>Técnico:</b> conecta nuevas tomas de agua, distribuye el agua, repara fugas en la red comunitaria, coordina faenas y trabajos remunerados para mejorar el sistema del agua y asigna multas en caso de mal uso del agua. También atiende emergencias relacionadas con el agua. Recibe un pago mensual de $2,000.00 pesos durante 8 meses al año. Este pago podrá ajustarse dependiendo del inicio de la temporada de lluvias, ya que durante ese tiempo no será necesario que cambie las llaves para distribuir el agua.</li></ul><p>En 2025, los cargos son: <b>Presidente</b> Eduardo Luna Sánchez · <b>Tesorera</b> Araceli Ledezma González · <b>Técnico</b> Claudio Lugo Hernández.</p>'],
+    [4, 'Qué hace el Comité de Agua', '<ul><li>Asegurar que el agua llegue a todas las casas de manera justa.</li><li>Reparar fugas en la infraestructura del sistema de agua del arroyo y del sistema de agua potable.</li><li>Atender emergencias de agua.</li><li>Colocar nuevas tomas de agua cuando se necesiten.</li><li>Cobrar los pagos anuales del agua y dar recibos.</li><li>Poner multas si alguien no paga o usa mal el agua.</li><li>Cuidar que el agua no se desperdicie.</li><li>Presentar informes de dinero y actividades una vez al año.</li><li>Proponer y gestionar recursos para proyectos que mejoren el sistema de agua de la comunidad.</li><li>Pagar jornales para mejoras en el sistema comunitario de agua potable.</li><li>Avisar en la temporada de sequía qué días habrá agua en cada barrio, para que todos puedan estar preparados.</li></ul>'],
+    [5, 'Costos del servicio', '<ul><li>Pago anual del agua: <b>$150.00</b> pesos.</li><li>Costo de una nueva toma de agua: <b>$400.00</b> pesos.</li></ul><p>Cuando se pague una nueva toma en cualquier momento del año, la persona usuaria deberá cubrir también la anualidad completa de ese mismo año. Por ejemplo, si se paga una nueva toma el 8 de diciembre de 2025, se deberá pagar también la anualidad de 2025.</p>'],
+    [6, 'Multas por no pagar a tiempo', '<p>Si el pago del agua no se hace antes del último día de marzo, se cobrará un extra de <b>$100.00</b> pesos.</p>'],
+    [7, 'Multas por mal uso del agua', '<p>Si hay una fuga y no se arregla en una semana: <b>$200.00</b> pesos.</p>'],
+    [8, 'Cómo pagar', '<p>El pago se hace directamente con la tesorera, en los horarios y lugares que se indiquen.</p>'],
+    [9, 'Publicación de deudores', '<p>Para asegurar que todos cumplan con sus pagos y multas, la lista de personas que no han pagado su anualidad o que tienen multas pendientes será colocada en las tiendas de la comunidad. Esto ayudará a recordar a los deudores que deben ponerse al corriente y contribuir al buen funcionamiento del servicio de agua.</p>'],
+    [10, 'Consecuencias por no pagar a tiempo', '<p>Si no se paga la anualidad antes del 31 de marzo, la toma de agua será cortada. Para volver a conectarse, la persona deberá pagar <b>$400</b> por una nueva toma y <b>$100</b> de multa por el retraso en el pago.</p>'],
+    [11, 'Pago de jornales para mejoras del sistema de agua', '<p>El comité podrá usar el dinero en caja para pagar jornales cuando se necesite hacer mejoras en el sistema de agua. Esto incluye trabajos como la limpieza de los depósitos de agua, mantenimiento del nacimiento o cualquier otra tarea necesaria para asegurar un buen servicio. Cuando se requiera el pago de un jornal para trabajos en el sistema de agua, el monto aprobado por la asamblea será de <b>$350.00</b> pesos.</p>'],
+    [12, 'Obligaciones de quienes reciben agua', '<ul><li>Pagar a tiempo el servicio de agua.</li><li>Avisar si hay fugas o problemas con el agua.</li><li>Reparar fugas en la infraestructura que conecta su vivienda con la red de agua.</li><li>Usar el agua de manera responsable.</li><li>Permitir que el Comité revise las instalaciones cuando sea necesario.</li></ul>'],
+    [13, 'Derechos de los usuarios', '<ul><li>Recibir agua de manera equitativa en función de su disponibilidad.</li><li>Ser informados sobre las decisiones y actividades del Comité.</li><li>Participar en las reuniones comunitarias sobre el agua con voz y voto.</li></ul>'],
+    [14, 'Cómo hacer una queja o denuncia', '<p>Si alguien tiene un problema con el agua o quiere denunciar algo, debe enviar un mensaje por WhatsApp al presidente del Comité, incluyendo fotos como evidencia.</p>'],
+    [15, 'Cómo informa el Comité a la comunidad', '<p>El Comité informará a la comunidad sobre cualquier asunto relacionado con el agua a través de un grupo de WhatsApp. Todos los usuarios deben estar atentos a los avisos en este medio. Además, el comité también colocará avisos importantes en la farmacia de la comunidad para que todos estén enterados.</p>'],
+    [16, 'Aplicación de sanciones', '<p>Las sanciones establecidas en este reglamento serán aplicadas por el Comité de Agua de manera imparcial y con base en evidencia documentada. En caso de desacuerdo, los usuarios podrán solicitar la revisión del caso ante una asamblea comunitaria.</p>'],
+    [17, 'Resolución de conflictos', '<p>Cualquier conflicto derivado de la aplicación de este reglamento será resuelto mediante mediación en el Comité de Agua o, de ser necesario, en una asamblea comunitaria extraordinaria.</p>'],
+    [18, 'Proyectos para mejorar el servicio de agua', '<p>Si al final del año queda dinero sobrante en la caja del comité, se podrá usar para mejorar la infraestructura del agua en la comunidad. El comité propondrá proyectos como arreglar tuberías viejas, mejorar los tanques de almacenamiento o cualquier otra necesidad importante. Estos proyectos deberán ser presentados en una asamblea y solo se harán si la mayoría de la comunidad está de acuerdo.</p>'],
+    [19, 'Colocación de tuberías nuevas', '<p>Las tuberías nuevas deberán colocarse fuera de los solares. Si la asamblea así lo decide, los propietarios deberán permitir retirar las tuberías que actualmente pasen dentro de los solares.</p>'],
+    [20, 'Cambios en el reglamento', '<p>Si se necesita cambiar este reglamento, la propuesta debe presentarla el Comité de Agua y ser aprobada en una reunión comunitaria con al menos la mitad de los vecinos presentes.</p>'],
+    [21, 'Cuándo entra en vigor este reglamento', '<p>Este reglamento empezará a aplicarse al día siguiente de su aprobación en la reunión comunitaria. Aprobado por la Asamblea de la Comunidad de La Florida, Arroyo Seco, el día 20 de septiembre de 2025.</p>']
+  ];
+
+  // Preguntas frecuentes: respuesta corta + artículos + palabras que las disparan
+  const FAQ = [
+    ['¿Cuánto se paga al año?', 'La anualidad es de $150 por toma. Se paga con la tesorera antes del 31 de marzo.', [5, 8], 'cuanto pago anualidad cuota año anual precio cuesta'],
+    ['¿Y si pago tarde?', 'Después del último día de marzo se cobran $100 de recargo y la toma se corta. Para reconectarla: $400 de toma nueva más los $100 de multa.', [6, 10], 'tarde atraso retraso recargo vencido despues marzo no pague corte cortan reconexion reconectar'],
+    ['¿Cuánto cuesta una toma nueva?', '$400, y además se paga la anualidad completa del año en que se pone, aunque sea en diciembre.', [5], 'toma nueva instalacion conectar nueva conexion'],
+    ['¿Qué pasa si tengo una fuga?', 'Hay que avisar al comité y arreglarla. Si es de tu casa a la red y no se arregla en una semana, la multa es de $200.', [7, 12], 'fuga fugas tirando desperdicio llave abierta multa reparar'],
+    ['¿Cuánto se paga un jornal?', '$350 por jornal, para trabajos de mejora: limpiar depósitos, mantener el nacimiento y otros.', [11], 'jornal faena trabajo limpieza deposito nacimiento peon'],
+    ['¿Cuánto gana el técnico?', '$2,000 al mes durante 8 meses al año; puede ajustarse según cuándo empiecen las lluvias.', [3], 'tecnico sueldo pago claudio llaves'],
+    ['¿Cómo pongo una queja?', 'Por WhatsApp al presidente del comité, con fotos como evidencia.', [14], 'queja denuncia problema reportar whatsapp'],
+    ['¿Publican a los que deben?', 'Sí: la lista de quienes no han pagado o tienen multas se pone en las tiendas de la comunidad.', [9], 'deudores lista tiendas publicar deben'],
+    ['¿No estoy de acuerdo con una multa?', 'Puedes pedir que se revise tu caso en una asamblea comunitaria. Los conflictos se median primero en el comité.', [16, 17], 'desacuerdo multa injusta apelar revisar conflicto pleito asamblea'],
+    ['¿Qué se hace con lo que sobra en caja?', 'Se puede usar en mejoras (tuberías, tanques), pero solo si el proyecto se presenta en asamblea y la mayoría está de acuerdo.', [18], 'sobra sobrante dinero caja proyecto mejora tanque tuberia'],
+    ['¿Quién está en el comité?', 'Presidente Eduardo Luna Sánchez, tesorera Araceli Ledezma González y técnico Claudio Lugo Hernández.', [3], 'comite quien presidente tesorera tesorero cargos'],
+    ['¿Cómo se cambia el reglamento?', 'El comité presenta la propuesta y se aprueba en reunión comunitaria con al menos la mitad de los vecinos presentes.', [20], 'cambiar reglamento modificar reforma']
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const plano = (h) => h.replace(/<[^>]+>/g, ' ');
+  ART.forEach((a) => (a.busca = A.sinAcentos(a[1] + ' ' + plano(a[2]))));
+
+  $('preguntas').innerHTML = FAQ.map((f, i) => '<button class="chip" data-i="' + i + '">' + f[0] + '</button>').join('');
+
+  function resaltar(html, palabras) {
+    if (!palabras.length) return html;
+    return html.replace(/>([^<]+)</g, (m, txt) => {
+      let out = txt;
+      palabras.forEach((p) => {
+        const rx = new RegExp('(' + p.split('').map((c) => {
+          const v = { a: '[aá]', e: '[eé]', i: '[ií]', o: '[oó]', u: '[uúü]', n: '[nñ]' }[c];
+          return v || c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }).join('') + ')', 'gi');
+        out = out.replace(rx, '<mark>$1</mark>');
+      });
+      return '>' + out + '<';
+    });
+  }
+
+  function pintar(lista, palabras) {
+    let html = '', cap = null;
+    lista.forEach((a) => {
+      const c = Object.keys(CAP).filter((k) => +k <= a[0]).pop();
+      if (c !== cap) { cap = c; html += '<p class="capitulo">' + CAP[c] + '</p>'; }
+      html += '<article class="articulo" id="art-' + a[0] + '"><h3><em>Art. ' + a[0] + '</em>' + a[1] + '</h3>' + resaltar(a[2], palabras) + '</article>';
+    });
+    $('articulos').innerHTML = html || '<p class="vacio">No encontré esa palabra en el reglamento. Prueba con otra, o pregúntale al comité.</p>';
+  }
+
+  function mostrarFaq(i, desdeBusqueda) {
+    const f = FAQ[i];
+    document.querySelectorAll('#preguntas .chip').forEach((c) => c.setAttribute('aria-pressed', +c.dataset.i === i));
+    const r = $('respuesta');
+    r.innerHTML = '<b>' + f[0] + '</b>' + f[1] + '<div class="ir-art" style="margin-top:6px">' +
+      f[2].map((n) => '<a href="#art-' + n + '" data-art="' + n + '">Ver artículo ' + n + '</a>').join(' · ') + '</div>';
+    r.classList.add('ver');
+    if (!desdeBusqueda) { $('q').value = ''; pintar(ART, []); $('cuenta').textContent = ''; }
+  }
+
+  $('preguntas').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) mostrarFaq(+c.dataset.i); });
+  $('respuesta').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-art]'); if (!a) return;
+    e.preventDefault();
+    const el = $('art-' + a.dataset.art);
+    if (!el) { $('q').value = ''; pintar(ART, []); }
+    const art = $('art-' + a.dataset.art);
+    art.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    art.classList.add('foco'); setTimeout(() => art.classList.remove('foco'), 2200);
+  });
+
+  const VACIAS = new Set(['que', 'de', 'la', 'el', 'si', 'se', 'y', 'a', 'en', 'un', 'una', 'por', 'para', 'mi', 'me', 'lo', 'los', 'las', 'hay', 'como', 'cuanto', 'es', 'del', 'al', 'pasa', 'tengo', 'no']);
+  $('q').addEventListener('input', () => {
+    const q = A.sinAcentos($('q').value.trim());
+    if (!q) { pintar(ART, []); $('cuenta').textContent = ''; $('respuesta').classList.remove('ver'); return; }
+    const palabras = q.split(/[^a-z0-9ñ]+/).filter((p) => p.length > 2 && !VACIAS.has(p));
+    if (!palabras.length) return;
+    // la pregunta frecuente que mejor coincide
+    let mejor = -1, puntos = 0;
+    FAQ.forEach((f, i) => {
+      const claves = A.sinAcentos(f[0] + ' ' + f[3]);
+      const p = palabras.filter((w) => claves.includes(w) || claves.includes(w.slice(0, -1))).length;
+      if (p > puntos) { puntos = p; mejor = i; }
+    });
+    if (mejor >= 0) mostrarFaq(mejor, true); else { $('respuesta').classList.remove('ver'); document.querySelectorAll('#preguntas .chip').forEach((c) => c.setAttribute('aria-pressed', false)); }
+    const lista = ART.filter((a) => palabras.some((w) => a.busca.includes(w)));
+    $('cuenta').textContent = lista.length ? lista.length + (lista.length === 1 ? ' artículo habla' : ' artículos hablan') + ' de eso:' : '';
+    pintar(lista, palabras);
+  });
+
+  pintar(ART, []);
+  if (location.hash) { const el = document.querySelector(location.hash); if (el) el.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adeudos del agua</title>
+<meta name="description" content="Quién no ha pagado la anualidad del agua en La Florida, por barrio.">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css?v=20261125">
+</head>
+<body>
+<div class="ola-top">
+  <div class="dentro">
+    <span class="etiqueta" id="et-anio">Adeudos</span>
+    <h1>Quién falta por pagar</h1>
+    <p id="intro">Tomas del padrón que no tienen recibo de la anualidad de este año.</p>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main>
+  <section class="sube">
+    <div class="tarjeta">
+      <div class="resumen-linea">
+        <div><b class="num" id="total">—</b> <span class="chico">por cobrar</span></div>
+        <div class="chico" id="cuantos"></div>
+        <button class="boton claro no-imprimir" style="margin-left:auto" onclick="window.print()">🖨 Imprimir la lista para las tiendas</button>
+      </div>
+      <input class="buscar" id="q" type="search" placeholder="Buscar por nombre o número de toma" autocomplete="off">
+      <div class="filtros" id="filtros"></div>
+      <div id="lista"></div>
+      <div id="fuente"></div>
+      <p class="chico" style="margin-top:14px">El artículo 9 del reglamento dice que la lista de quienes no han pagado se coloca en las tiendas de la comunidad.
+        Los casos dudosos (tomas que dicen que no existen, cortes pedidos, pagos incompletos) no salen aquí: están en <a href="pendientes.html">Pendientes</a>.</p>
+    </div>
+  </section>
+</main>
+
+<script src="js/config.js?v=20261125"></script>
+<script src="js/padron-copia.js?v=20261125"></script>
+<script src="js/agua.js?v=20261125"></script>
+<script>
+(async function () {
+  const A = window.AGUA, C = window.AGUA_CONFIG;
+  A.pintarMarco('adeudos.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+  const datos = await A.cargar();
+  const P = datos.padron;
+  const $ = (id) => document.getElementById(id);
+  $('et-anio').textContent = 'Adeudos ' + P.actual;
+  $('intro').textContent = 'Tomas del padrón que no tienen recibo de la anualidad ' + P.actual + '. ' +
+    (P.vencio ? 'Como ya pasó el 31 de marzo, cada toma debe $' + C.CUOTA + ' más $' + C.RECARGO + ' de recargo.' : 'Cada toma debe $' + C.CUOTA + '.');
+  $('fuente').innerHTML = A.avisoFuente(datos);
+
+  const params = new URLSearchParams(location.search);
+  let barrio = params.get('barrio') || '';
+  const barrios = [...new Set(P.deudores.flatMap((d) => d.barrios))].sort((a, b) => a.localeCompare(b, 'es'));
+  const f = $('filtros');
+  const pintarFiltros = () => {
+    f.innerHTML = ['', ...barrios].map((b) => '<button class="chip" data-b="' + A.esc(b) + '" aria-pressed="' + (b === barrio) + '">' + (b ? A.esc(b) : 'Todos los barrios') + '</button>').join('');
+  };
+  f.addEventListener('click', (e) => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    barrio = c.dataset.b; pintarFiltros(); pintar();
+    history.replaceState(null, '', barrio ? '?barrio=' + encodeURIComponent(barrio) : location.pathname);
+  });
+
+  function pintar() {
+    const q = A.sinAcentos($('q').value.trim());
+    const lista = P.deudores.map((d) => {
+      const tomas = d.tomas.filter((t) => !barrio || t.barrio === barrio);
+      return { ...d, tomas, adeudo: tomas.reduce((s, t) => s + t.adeudo, 0) };
+    }).filter((d) => d.tomas.length && (!q || A.sinAcentos(d.nombre).includes(q) || d.tomas.some((t) => t.toma === q)));
+    const total = lista.reduce((s, d) => s + d.adeudo, 0);
+    const ntomas = lista.reduce((s, d) => s + d.tomas.length, 0);
+    $('total').textContent = A.pesos(total);
+    $('cuantos').textContent = lista.length + (lista.length === 1 ? ' persona' : ' personas') + ' · ' + ntomas + (ntomas === 1 ? ' toma' : ' tomas') + (barrio ? ' en ' + barrio : '');
+    $('lista').innerHTML = lista.length ? lista.map((d) =>
+      '<div class="ficha"><div class="quien">' + A.esc(d.nombre) + '</div>' +
+      '<div class="det">' + d.tomas.map((t) => '<span class="toma">' + t.toma + '</span>').join('') + ' ' +
+      A.esc([...new Set(d.tomas.map((t) => t.barrio))].join(', ')) + ' · ' + A.esc([...new Set(d.tomas.map((t) => t.fuente))].join(', ')) +
+      (d.tomas.some((t) => t.sinReciboPrevio) ? ' · tampoco hay recibo de ' + P.previo : '') + '</div>' +
+      '<div class="monto num">' + A.pesos(d.adeudo) + '<small>' + d.tomas.length + (d.tomas.length === 1 ? ' toma' : ' tomas') + '</small></div></div>'
+    ).join('') : '<p class="vacio">' + (q ? 'Nadie con ese nombre o número debe.' : '¡Nadie debe aquí! 💧') + '</p>';
+  }
+  $('q').addEventListener('input', pintar);
+  pintarFiltros(); pintar();
+})();
+</script>
+</body>
+</html>

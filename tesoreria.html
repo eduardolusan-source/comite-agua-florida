@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tesorería del agua</title>
+<meta name="description" content="Caja del Comité de Agua de La Florida: gastos, ingresos y saldo.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css?v=20261125">
+</head>
+<body>
+<div class="ola-top">
+  <div class="dentro">
+    <span class="etiqueta">Tesorería</span>
+    <h1 id="titulo">La caja del comité</h1>
+    <p id="sub">Aquí la tesorera anota lo que se gasta y lo que entra fuera de las anualidades. El sitio saca las cuentas solo.</p>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main>
+  <!-- 1. Puerta -->
+  <section class="sube" id="puerta">
+    <div class="tarjeta puerta">
+      <div id="puerta-gota"></div>
+      <h2>Entrar a la tesorería</h2>
+      <p class="chico">Escribe la clave de la tesorera.</p>
+      <form id="f-entrar">
+        <label class="campo"><span>Clave</span><input id="clave" type="password" autocomplete="current-password" required></label>
+        <p class="error" id="e-entrar"></p>
+        <button class="boton" style="width:100%" id="b-entrar">Entrar</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 2. Adentro -->
+  <div id="adentro" hidden>
+    <section class="sube" id="caja">
+      <div class="tarjeta caja-grande">
+        <small>Hay en caja</small>
+        <b class="num" id="saldo">—</b>
+        <div class="desglose" id="desglose"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="tarjeta" id="anotar">
+        <h2>¿Qué vas a anotar?</h2>
+        <div class="pestanas" role="group">
+          <button data-tipo="Egreso" aria-pressed="true">Un gasto</button>
+          <button data-tipo="Ingreso" aria-pressed="false">Entró dinero</button>
+        </div>
+        <div class="atajos" id="atajos"></div>
+        <form id="f-mov" hidden>
+          <div id="jornales" hidden>
+            <span class="chico">¿Cuántos jornales?</span>
+            <div class="filtros" id="n-jornales" style="margin-top:6px"></div>
+          </div>
+          <label class="campo"><span id="l-concepto">¿Qué fue?</span><input id="concepto" required maxlength="120"></label>
+          <label class="campo monto"><span>¿Cuánto?</span><input id="monto" type="number" inputmode="decimal" min="1" step="0.01" placeholder="$0" required></label>
+          <div class="rejilla r2" style="gap:0 16px">
+            <label class="campo"><span>¿Cuándo?</span><input id="fecha" type="date" required></label>
+            <label class="campo"><span id="l-quien">¿A quién se le pagó?</span><input id="pagado_a" maxlength="80"></label>
+          </div>
+          <label class="campo"><span>Nota <small style="font-weight:400;color:#5d6d76">(si quieres)</small></span><textarea id="nota" rows="2" maxlength="300"></textarea></label>
+          <label class="campo"><span>Tu nombre</span><input id="registro" maxlength="60" required></label>
+          <p class="error" id="e-mov"></p>
+          <button class="boton" id="b-guardar" style="width:100%">Guardar</button>
+        </form>
+        <div class="listo" id="listo" hidden></div>
+        <p class="chico" id="nota-anualidad" style="margin:14px 0 0">Las anualidades no se anotan aquí: se cobran en el padrón y se suman solas a la caja.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="tarjeta">
+        <h2>Lo que se ha anotado</h2>
+        <div id="movs"></div>
+      </div>
+    </section>
+
+    <section>
+      <details class="tarjeta">
+        <summary style="cursor:pointer;font-weight:600;color:var(--hondo)">Ajustes de la caja</summary>
+        <p class="chico" style="margin-top:12px">La caja se calcula así: <b>dinero con el que empezamos</b> + anualidades y tomas cobradas en el padrón (desde el año que elijas) + lo que entró aparte − los gastos.
+          Si la cuenta no cuadra con el dinero que tienes en la mano, ajusta aquí el punto de partida.</p>
+        <form id="f-ajustes">
+          <div class="rejilla r2" style="gap:0 16px">
+            <label class="campo"><span>Dinero con el que empezamos</span><input id="a-inicial" type="number" step="0.01" inputmode="decimal"></label>
+            <label class="campo"><span>Contar las cuotas del padrón desde</span><select id="a-desde"></select></label>
+          </div>
+          <p class="error" id="e-ajustes"></p>
+          <button class="boton claro">Guardar ajustes</button>
+        </form>
+      </details>
+    </section>
+  </div>
+</main>
+
+<script src="js/config.js?v=20261125"></script>
+<script src="js/padron-copia.js?v=20261125"></script>
+<script src="js/agua.js?v=20261125"></script>
+<script>
+(async function () {
+  const A = window.AGUA, C = window.AGUA_CONFIG;
+  A.pintarMarco('tesoreria.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+  const $ = (id) => document.getElementById(id);
+  $('puerta-gota').innerHTML = A.GOTA.replace('<svg', '<svg width="72" height="72"');
+
+  const guardado = {
+    get(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k) || ''; } catch (e) { return ''; } },
+    set(k, v, siempre) { try { (siempre ? localStorage : sessionStorage).setItem(k, v); } catch (e) {} }
+  };
+
+  const ATAJOS = {
+    Egreso: [
+      { e: '👷', n: 'Pago al técnico', m: C.PAGO_TECNICO, q: 'Claudio Lugo Hernández', s: '$2,000 al mes' },
+      { e: '🧑‍🌾', n: 'Jornales', m: C.JORNAL, s: '$350 cada uno', jornal: true },
+      { e: '🔧', n: 'Material o tubería', s: 'mangueras, coples, llaves' },
+      { e: '🚰', n: 'Reparación de fuga', s: 'trabajo o refacción' },
+      { e: '🧾', n: 'Papelería y recibos', s: 'copias, talonarios' },
+      { e: '✏️', n: 'Otro gasto', s: 'escribe qué fue', otro: true }
+    ],
+    Ingreso: [
+      { e: '💧', n: 'Toma nueva', m: C.TOMA_NUEVA + C.CUOTA, s: '$400 + anualidad del año' },
+      { e: '⏰', n: 'Multa por pagar tarde', m: C.RECARGO, s: '$100' },
+      { e: '🚱', n: 'Multa por fuga', m: C.MULTA_FUGA, s: '$200' },
+      { e: '🤝', n: 'Donativo o apoyo', s: 'de alguien o de un programa' },
+      { e: '✏️', n: 'Otro ingreso', s: 'escribe qué fue', otro: true }
+    ]
+  };
+
+  let tipo = 'Egreso', clave = guardado.get('agua-clave'), datos = null;
+
+  // ---------- puerta ----------
+  if (!C.SCRIPT_URL) {
+    $('e-entrar').innerHTML = 'Todavía no está conectada la hoja de la tesorería. Hay que publicar el Apps Script (instrucciones en <code>apps-script/INSTALAR.md</code>).';
+    $('b-entrar').disabled = true;
+  }
+  $('f-entrar').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const v = $('clave').value.trim();
+    $('b-entrar').disabled = true; $('e-entrar').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'entrar', clave: v });
+      if (r.ok) { clave = v; guardado.set('agua-clave', v); abrir(); }
+      else $('e-entrar').textContent = 'Esa no es la clave. Intenta otra vez.';
+    } catch (e) { $('e-entrar').textContent = 'No hay conexión con la hoja. Revisa el internet e intenta de nuevo.'; }
+    $('b-entrar').disabled = false;
+  });
+
+  async function abrir() {
+    $('puerta').hidden = true; $('adentro').hidden = false;
+    $('titulo').textContent = 'Hola, tesorera 💧';
+    $('registro').value = guardado.get('agua-nombre') || 'Araceli';
+    $('fecha').value = hoyISO();
+    pintarAtajos();
+    await refrescar(true);
+  }
+
+  async function refrescar(fresco) {
+    datos = await A.cargar({ fresco });
+    pintarCaja();
+  }
+
+  const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+  // ---------- caja ----------
+  function pintarCaja() {
+    const P = datos.padron, k = A.cuentasDeCaja(P, datos.caja);
+    $('saldo').textContent = A.pesos(k.saldo);
+    const partes = [];
+    if (k.inicial) partes.push('Empezamos con ' + A.pesos(k.inicial));
+    k.porAnio.forEach((a) => partes.push('Cuotas ' + a.anio + ': ' + A.pesos(a.monto)));
+    if (k.otros) partes.push('Otros ingresos: ' + A.pesos(k.otros));
+    partes.push('Gastos: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
+    $('desglose').innerHTML = partes.map((p) => '<span>' + p + '</span>').join('');
+    if (datos.fuente !== 'vivo') $('desglose').innerHTML += '<span style="flex-basis:100%">⚠ La hoja no respondió: falta sumar lo que se ha anotado.</span>';
+
+    // movimientos
+    const movs = (k.movimientos || []).slice().sort((a, b) => (b.fecha + b.folio).localeCompare(a.fecha + a.folio));
+    $('movs').innerHTML = movs.length ? movs.map((m) => {
+      const d = new Date(m.fecha + 'T12:00:00');
+      const an = m.estatus === 'Anulado';
+      return '<div class="mov' + (an ? ' anulado' : '') + '"><div class="fecha"><b>' + d.getDate() + '</b>' + A.MESES[d.getMonth()].slice(0, 3) + ' ' + String(d.getFullYear()).slice(2) + '</div>' +
+        '<div class="que"><b>' + A.esc(m.concepto) + '</b><span>' + [m.pagado_a, m.nota, m.folio + ' · anotó ' + m.registro].filter(Boolean).map(A.esc).join(' · ') + '</span></div>' +
+        '<div class="cuanto num ' + (m.tipo === 'Egreso' ? 'sale' : 'entra') + '">' + (m.tipo === 'Egreso' ? '−' : '+') + A.pesos(m.monto) +
+        (an ? '' : '<br><button class="quitar" data-folio="' + A.esc(m.folio) + '">quitar</button>') + '</div></div>';
+    }).join('') : '<p class="vacio">Todavía no hay nada anotado. Empieza con el primer gasto 👆</p>';
+
+    // ajustes
+    $('a-inicial').value = k.inicial || 0;
+    $('a-desde').innerHTML = P.anios.map((a) => '<option' + (a.anio === k.desde ? ' selected' : '') + '>' + a.anio + '</option>').join('');
+  }
+
+  $('movs').addEventListener('click', async (e) => {
+    const b = e.target.closest('.quitar'); if (!b) return;
+    if (!confirm('¿Quitar este movimiento de las cuentas? Se queda tachado en la lista.')) return;
+    b.disabled = true;
+    try {
+      const r = await A.enviar({ accion: 'anular', clave, folio: b.dataset.folio, registro: $('registro').value });
+      if (!r.ok) throw new Error(r.error);
+      await refrescar(true);
+    } catch (err) { alert('No se pudo quitar: ' + (err.message || 'sin conexión')); b.disabled = false; }
+  });
+
+  // ---------- anotar ----------
+  document.querySelector('.pestanas').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    tipo = b.dataset.tipo;
+    document.querySelectorAll('.pestanas button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    pintarAtajos();
+  });
+
+  function pintarAtajos() {
+    $('atajos').innerHTML = ATAJOS[tipo].map((a, i) => '<button type="button" class="atajo" data-i="' + i + '" aria-pressed="false"><span class="e">' + a.e + '</span><b>' + a.n + '</b><small>' + a.s + '</small></button>').join('');
+    $('f-mov').hidden = true; $('listo').hidden = true;
+    $('l-quien').textContent = tipo === 'Egreso' ? '¿A quién se le pagó?' : '¿Quién pagó?';
+    $('nota-anualidad').hidden = tipo !== 'Ingreso';
+  }
+
+  let atajo = null;
+  $('atajos').addEventListener('click', (e) => {
+    const b = e.target.closest('.atajo'); if (!b) return;
+    atajo = ATAJOS[tipo][+b.dataset.i];
+    document.querySelectorAll('.atajo').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    $('f-mov').hidden = false; $('listo').hidden = true; $('e-mov').textContent = '';
+    $('concepto').value = atajo.otro ? '' : atajo.n;
+    $('monto').value = atajo.m || '';
+    $('pagado_a').value = atajo.q || '';
+    $('nota').value = '';
+    if (!$('fecha').value) $('fecha').value = hoyISO();
+    $('jornales').hidden = !atajo.jornal;
+    if (atajo.jornal) {
+      $('n-jornales').innerHTML = [1, 2, 3, 4, 5, 6, 8, 10].map((n) => '<button type="button" class="chip" data-n="' + n + '" aria-pressed="' + (n === 1) + '">' + n + '</button>').join('');
+      $('concepto').value = '1 jornal';
+    }
+    (atajo.otro ? $('concepto') : $('monto')).focus({ preventScroll: true });
+    $('f-mov').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  $('n-jornales').addEventListener('click', (e) => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    const n = +c.dataset.n;
+    document.querySelectorAll('#n-jornales .chip').forEach((x) => x.setAttribute('aria-pressed', x === c));
+    $('monto').value = n * C.JORNAL;
+    $('concepto').value = n === 1 ? '1 jornal' : n + ' jornales';
+  });
+
+  $('f-mov').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const monto = parseFloat($('monto').value);
+    if (!(monto > 0)) { $('e-mov').textContent = 'Escribe cuánto fue.'; return; }
+    const cuerpo = {
+      accion: 'registrar', clave, tipo, concepto: $('concepto').value.trim(), monto,
+      fecha: $('fecha').value, pagado_a: $('pagado_a').value.trim(), nota: $('nota').value.trim(), registro: $('registro').value.trim()
+    };
+    guardado.set('agua-nombre', cuerpo.registro, true);
+    $('b-guardar').disabled = true; $('b-guardar').textContent = 'Guardando…'; $('e-mov').textContent = '';
+    try {
+      const r = await A.enviar(cuerpo);
+      if (!r.ok) throw new Error(r.error === 'clave' ? 'La clave cambió. Vuelve a entrar.' : r.error);
+      $('f-mov').hidden = true;
+      document.querySelectorAll('.atajo').forEach((x) => x.setAttribute('aria-pressed', false));
+      $('listo').hidden = false;
+      $('listo').innerHTML = '<div class="gota-ok">' + A.GOTA + '</div><h3>Quedó anotado</h3><p>' + A.esc(cuerpo.concepto) + ' · <b>' + A.pesos(monto) + '</b><br><span class="chico">Folio ' + A.esc(r.folio) + '</span></p>' +
+        '<button class="boton claro" type="button" id="otro">Anotar otro</button>';
+      $('otro').onclick = () => { $('listo').hidden = true; $('anotar').scrollIntoView({ behavior: 'smooth' }); };
+      await refrescar(true);
+    } catch (err) {
+      $('e-mov').textContent = 'No se guardó: ' + (err.message || 'no hay conexión') + '. Intenta otra vez.';
+    }
+    $('b-guardar').disabled = false; $('b-guardar').textContent = 'Guardar';
+  });
+
+  $('f-ajustes').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    $('e-ajustes').textContent = '';
+    try {
+      const r = await A.enviar({ accion: 'ajustes', clave, saldo_inicial: parseFloat($('a-inicial').value) || 0, contar_desde: +$('a-desde').value, registro: $('registro').value });
+      if (!r.ok) throw new Error(r.error);
+      $('e-ajustes').style.color = 'var(--bien)'; $('e-ajustes').textContent = 'Listo, se guardaron los ajustes.';
+      await refrescar(true);
+    } catch (err) { $('e-ajustes').style.color = ''; $('e-ajustes').textContent = 'No se guardó: ' + (err.message || 'sin conexión'); }
+  });
+
+  // Si ya había entrado en esta sesión, pasa directo
+  if (clave && C.SCRIPT_URL) {
+    A.enviar({ accion: 'entrar', clave }).then((r) => { if (r.ok) abrir(); }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

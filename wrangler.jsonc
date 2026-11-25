@@ -1,0 +1,10 @@
+{
+  // Sitio estático: Cloudflare sirve los archivos tal cual, sin build.
+  // Dirección: agua-florida.<cuenta>.workers.dev
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agua-florida",
+  "compatibility_date": "2026-11-25",
+  "assets": {
+    "directory": "./"
+  }
+}
