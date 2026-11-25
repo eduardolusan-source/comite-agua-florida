@@ -3,7 +3,7 @@
 // (ver apps-script/INSTALAR.md). Mientras esté vacía, el sitio usa la copia
 // del padrón de js/padron-copia.js y la tesorería no puede guardar.
 window.AGUA_CONFIG = {
-  SCRIPT_URL: '',
+  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw-qlfxVvIjLWWRs7tWCAkuX6v7jc4tfYetqxcpTajgZmnrcgCV-TFKa3Sq868_4TF0/exec',
 
   // Cuotas del reglamento (art. 5, 6, 7, 10 y 11)
   CUOTA: 150,
