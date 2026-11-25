@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe anual del agua</title>
+<meta name="description" content="Informe anual del Comité de Agua de La Florida: cobranza, ingresos, gastos, caja y pendientes, listo para la asamblea.">
+<link rel="icon" href="assets/gota.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css?v=20261126b">
+</head>
+<body>
+<div class="ola-top no-imprimir">
+  <div class="dentro">
+    <span class="etiqueta">Para la asamblea · art. 4</span>
+    <h1>Informe anual</h1>
+    <p>Lo que el comité cobró, gastó y tiene en caja, con lo que queda pendiente. Se arma solo con el padrón y la tesorería; se imprime o se guarda en PDF.</p>
+    <div class="filtros anios-hero" id="anios"></div>
+  </div>
+  <div id="olas"></div>
+</div>
+
+<main class="informe">
+  <section class="sube no-imprimir">
+    <div class="tarjeta barra-informe">
+      <button class="boton" onclick="window.print()">🖨 Imprimir o guardar PDF</button>
+      <a class="boton claro" id="wa" target="_blank" rel="noopener">Mandar el resumen por WhatsApp</a>
+      <label class="chico" style="display:flex;align-items:center;gap:8px;margin-left:auto"><input type="checkbox" id="con-nombres"> Incluir la lista de quién debe</label>
+    </div>
+  </section>
+
+  <article class="hoja" id="hoja"><p class="vacio">Armando el informe…</p></article>
+</main>
+
+<script src="js/config.js?v=20261126b"></script>
+<script src="js/padron-copia.js?v=20261126b"></script>
+<script src="js/agua.js?v=20261126b"></script>
+<script>
+(async function () {
+  const A = window.AGUA, C = window.AGUA_CONFIG;
+  A.pintarMarco('informe.html');
+  document.getElementById('olas').outerHTML = A.OLAS;
+  const $ = (id) => document.getElementById(id);
+  const hoy = new Date();
+  const pedido = new URLSearchParams(location.search).get('anio');
+  const datos = await A.cargar({ anio: pedido, fresco: true });
+  const P = datos.padron, T = P.tot, Y = P.actual;
+  const k = A.cuentasDeCaja(P, datos.caja);
+  const pesos = A.pesos, esc = A.esc;
+
+  $('anios').innerHTML = P.anios.filter((a) => a.anio <= hoy.getFullYear()).map((a) =>
+    '<a class="chip" aria-pressed="' + (a.anio === Y) + '" href="?anio=' + a.anio + '">' + a.anio + '</a>').join('');
+
+  // ---------- dinero del año ----------
+  const movs = (k.movimientos || []).filter((m) => m.estatus !== 'Anulado' && String(m.fecha).slice(0, 4) === String(Y));
+  const grupoGasto = (c) => {
+    c = A.sinAcentos(c);
+    if (/tecnico/.test(c)) return 'Pago al técnico';
+    if (/jornal|faena/.test(c)) return 'Jornales';
+    if (/material|tuber|mangue|cople|llave/.test(c)) return 'Material y tubería';
+    if (/fuga|repar/.test(c)) return 'Reparaciones';
+    if (/papel|recibo|copia/.test(c)) return 'Papelería';
+    return 'Otros gastos';
+  };
+  const egresos = movs.filter((m) => m.tipo === 'Egreso');
+  const otrosIng = movs.filter((m) => m.tipo === 'Ingreso');
+  const sumar = (l) => l.reduce((s, m) => s + (+m.monto || 0), 0);
+  const porGrupo = {};
+  egresos.forEach((m) => { const g = grupoGasto(m.concepto); porGrupo[g] = (porGrupo[g] || 0) + (+m.monto || 0); });
+  const totEg = sumar(egresos), cuotas = P.ingresos[Y] || 0, totOtros = sumar(otrosIng);
+  const totIng = cuotas + totOtros;
+
+  // ---------- movimientos del padrón (hoja Pagos) ----------
+  const pagosY = (datos.pagos || []).filter((p) => p.anio === Y);
+  const porTipo = {};
+  pagosY.forEach((p) => { const t = p.tipo || 'Anualidad'; porTipo[t] = porTipo[t] || { n: 0, monto: 0 }; porTipo[t].n++; porTipo[t].monto += p.monto; });
+  const nuevas = pagosY.filter((p) => /nueva|instal/i.test(p.tipo)).length;
+
+  const fila = (a, b, cls) => '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + a + '</td><td class="num">' + b + '</td></tr>';
+  const barra = (v, max) => '<span class="mini-barra"><i style="width:' + (max ? Math.round((v / max) * 100) : 0) + '%"></i></span>';
+  const maxG = Math.max(1, ...Object.values(porGrupo));
+  const fechaCorta = (s) => { const d = new Date(s + 'T12:00:00'); return isNaN(d) ? s : d.getDate() + ' ' + A.MESES[d.getMonth()].slice(0, 3); };
+  const activas = P.tomas.filter((t) => t.estado !== 'baja').length;
+
+  const pend = [
+    ['Tomas que dicen que no existen', P.tomas.filter((t) => t.noExiste && !['cortada', 'baja'].includes(t.estado)).length],
+    ['Piden corte o hay que revisar', P.tomas.filter((t) => t.estado === 'aclarar' && !t.noExiste).length],
+    ['Pagaron menos de la cuota', T.parcial],
+    ['Pagos anotados sin número de toma', P.sueltos.length],
+    ['Tomas sin barrio o sin ubicación', P.tomas.filter((t) => t.barrio === 'Sin barrio' || !isFinite(t.x)).length]
+  ].filter((p) => p[1]);
+
+  function pintar() {
+    const conNombres = $('con-nombres').checked;
+    $('hoja').innerHTML =
+      '<header class="inf-cab"><div class="inf-gota">' + A.GOTA + '</div><div><p class="inf-sobre">Comité de Agua de La Florida · Arroyo Seco, Querétaro</p>' +
+      '<h1>Informe anual ' + Y + '</h1><p class="chico">Elaborado el ' + A.fechaLarga(hoy) + (Y === hoy.getFullYear() ? ' · el año sigue en curso' : '') +
+      ' · ' + (datos.fuente === 'vivo' ? 'datos en vivo del padrón y de la tesorería' : 'copia del padrón (sin tesorería)') + '</p></div></header>' +
+
+      '<section class="inf-sec"><h2>El año en números</h2><div class="inf-cifras">' +
+      cifra(T.pct + '%', 'de las tomas pagaron su anualidad', T.alCorriente + ' de ' + T.cobrables) +
+      cifra(pesos(totIng), 'entraron en el año', 'cuotas y otros ingresos') +
+      cifra(pesos(totEg), 'se gastaron', egresos.length + (egresos.length === 1 ? ' gasto anotado' : ' gastos anotados')) +
+      cifra(pesos(k.saldo), 'hay en caja hoy', k.corte ? 'según el conteo de la tesorera' : 'sin conteo de la tesorera todavía') +
+      cifra(pesos(T.porCobrar), 'falta por cobrar', T.conAdeudo + ' tomas con adeudo') +
+      cifra(activas, 'tomas en el padrón', (nuevas ? nuevas + ' nuevas en ' + Y + ' · ' : '') + T.cortada + ' cortadas · ' + T.exenta + ' de la comunidad') +
+      '</div></section>' +
+
+      '<section class="inf-sec inf-dos"><div><h2>Lo que entró</h2><table class="inf-tabla"><tbody>' +
+      fila('Anualidades y tomas cobradas (padrón)', pesos(cuotas)) +
+      otrosIng.map((m) => fila(esc(m.concepto) + (m.pagado_a ? ' <span class="chico">· ' + esc(m.pagado_a) + '</span>' : ''), pesos(m.monto))).join('') +
+      fila('<b>Total</b>', '<b>' + pesos(totIng) + '</b>', 'total') + '</tbody></table></div>' +
+      '<div><h2>Lo que se gastó</h2><table class="inf-tabla"><tbody>' +
+      (Object.keys(porGrupo).length ? Object.entries(porGrupo).sort((a, b) => b[1] - a[1]).map(([g, v]) => fila(g + barra(v, maxG), pesos(v))).join('') : fila('Sin gastos anotados en ' + Y, '—')) +
+      fila('<b>Total</b>', '<b>' + pesos(totEg) + '</b>', 'total') + '</tbody></table></div></section>' +
+      '<p class="inf-resultado">Resultado de ' + Y + ': <b class="' + (totIng - totEg >= 0 ? 'pos' : 'neg') + '">' + (totIng - totEg >= 0 ? '+' : '−') + pesos(Math.abs(totIng - totEg)) + '</b>' +
+      ' <span class="chico">(lo que entró menos lo que se gastó; el art. 18 dice que lo que sobre puede ir a mejoras si la asamblea lo aprueba)</span></p>' +
+      (k.corte ? '<p class="chico">Caja hoy: la tesorera contó ' + pesos(k.corte.monto) + ' el ' + A.fechaLarga(new Date(k.corte.anotado || k.corte.fecha)) + '; desde entonces ' +
+        (k.cuotasNuevas ? 'entraron ' + pesos(k.cuotasNuevas) + ' de anualidades, ' : '') + (k.otros ? pesos(k.otros) + ' aparte, ' : '') + 'y se gastaron ' + pesos(k.egresos) + '.</p>' : '') +
+
+      '<section class="inf-sec"><h2>Cobranza por barrio</h2><table class="inf-tabla inf-barrios"><thead><tr><th>Barrio</th><th class="num">Tomas</th><th class="num">Pagaron</th><th>Avance</th><th class="num">Por cobrar</th></tr></thead><tbody>' +
+      P.barrios.map((b) => '<tr><td>' + esc(b.nombre) + '</td><td class="num">' + b.total + '</td><td class="num">' + (b.pagada + b.parcial) + ' de ' + b.cobrables + '</td><td>' + barra(b.pct, 100) + ' ' + b.pct + '%</td><td class="num">' +
+        pesos(P.tomas.filter((t) => t.barrio === b.nombre).reduce((s, t) => s + t.adeudo, 0)) + '</td></tr>').join('') +
+      '</tbody></table></section>' +
+
+      (Object.keys(porTipo).length ? '<section class="inf-sec"><h2>Cobros registrados en ' + Y + '</h2><table class="inf-tabla"><tbody>' +
+        Object.entries(porTipo).map(([t, v]) => fila(esc(t) + ' <span class="chico">· ' + v.n + (v.n === 1 ? ' recibo' : ' recibos') + '</span>', pesos(v.monto))).join('') +
+        '</tbody></table><p class="chico">De la hoja Pagos. Lo anotado a mano en el padrón sin pasar por ella puede no aparecer aquí, pero sí en los totales.</p></section>' : '') +
+
+      '<section class="inf-sec"><h2>Gastos uno por uno</h2>' + (egresos.length ? '<table class="inf-tabla inf-gastos"><thead><tr><th>Fecha</th><th>Concepto</th><th>A quién</th><th class="num">Monto</th></tr></thead><tbody>' +
+        egresos.slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))).map((m) => '<tr><td>' + fechaCorta(m.fecha) + '</td><td>' + esc(m.concepto) + (m.nota ? '<br><span class="chico">' + esc(m.nota) + '</span>' : '') +
+          '</td><td>' + esc(m.pagado_a || '—') + '</td><td class="num">' + pesos(m.monto) + '</td></tr>').join('') + '</tbody></table>'
+        : '<p class="chico">La tesorería no tiene gastos anotados con fecha de ' + Y + '.</p>') + '</section>' +
+
+      '<section class="inf-sec"><h2>Pendientes para la asamblea</h2><ul class="inf-pend">' +
+      (T.conAdeudo ? '<li><b>' + T.conAdeudo + ' tomas</b> con adeudo por ' + pesos(T.porCobrar) + ' (' + P.deudores.length + ' personas).</li>' : '<li>Nadie tiene adeudo. 💧</li>') +
+      pend.map((p) => '<li>' + p[0] + ': <b>' + p[1] + '</b></li>').join('') +
+      '</ul>' +
+      (conNombres && P.deudores.length ? '<table class="inf-tabla"><thead><tr><th>Quién debe</th><th>Tomas</th><th class="num">Monto</th></tr></thead><tbody>' +
+        P.deudores.map((d) => '<tr><td>' + esc(d.nombre) + '</td><td>' + d.tomas.map((t) => t.toma).join(', ') + ' <span class="chico">· ' + esc(d.barrios.join(', ')) + '</span></td><td class="num">' + pesos(d.adeudo) + '</td></tr>').join('') +
+        '</tbody></table>' : '') + '</section>' +
+
+      '<footer class="inf-firmas"><div><span></span>Eduardo Luna Sánchez<small>Presidente</small></div><div><span></span>Araceli Ledezma González<small>Tesorera</small></div><div><span></span>Claudio Lugo Hernández<small>Técnico</small></div></footer>';
+
+    const texto = '💧 Informe ' + Y + ' · Comité de Agua de La Florida\n' +
+      '• Pagaron ' + T.alCorriente + ' de ' + T.cobrables + ' tomas (' + T.pct + '%)\n' +
+      '• Entraron ' + pesos(totIng) + ' y se gastaron ' + pesos(totEg) + '\n' +
+      '• En caja hoy: ' + pesos(k.saldo) + '\n' +
+      '• Falta por cobrar: ' + pesos(T.porCobrar) + '\n' +
+      'Informe completo: ' + location.href.split('#')[0];
+    $('wa').href = 'https://wa.me/?text=' + encodeURIComponent(texto);
+  }
+  function cifra(v, l, s) { return '<div class="inf-cifra"><b class="num">' + v + '</b><span>' + l + '</span><small>' + s + '</small></div>'; }
+  $('con-nombres').addEventListener('change', pintar);
+  pintar();
+})();
+</script>
+</body>
+</html>

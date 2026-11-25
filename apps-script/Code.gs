@@ -95,6 +95,14 @@ function movimientos_() {
     }));
 }
 
+// Renglones de la hoja Pagos (toma, año, fecha, tipo, recibo, monto) para el informe anual
+function pagos_() {
+  const h = libro_().getSheetByName('Pagos');
+  if (!h || h.getLastRow() < 2) return [];
+  return h.getRange(2, 1, h.getLastRow() - 1, 6).getDisplayValues().filter((r) => r[0] || r[5])
+    .map((r) => ({ toma: r[0], anio: Number(r[1]) || 0, fecha: r[2], tipo: r[3], recibo: r[4], monto: Number(String(r[5]).replace(/[$,]/g, '')) || 0 }));
+}
+
 function cambios_(n) {
   const h = libro_().getSheetByName('Cambios');
   if (!h || h.getLastRow() < 2) return [];
@@ -127,7 +135,8 @@ function datos_(fresco) {
     hora: new Date().toISOString(),
     padron: padron,
     caja: { saldo_inicial: Number(cfg.saldo_inicial) || 0, contar_desde: Number(cfg.contar_desde) || 0, movimientos: movimientos_() },
-    cambios: cambios_(40)
+    cambios: cambios_(40),
+    pagos: pagos_()
   };
   try { cache.put('datos', JSON.stringify(res), 120); } catch (err) { /* muy grande para la caché: no pasa nada */ }
   return res;

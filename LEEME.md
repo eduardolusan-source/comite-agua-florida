@@ -11,6 +11,7 @@ anote los gastos y la caja se calcule sola.
 | `adeudos.html` | Deudores por persona y barrio (imprimible para las tiendas, art. 9) |
 | `pendientes.html` | Tomas que «no existen», cortes pedidos, pagos incompletos, pagos sin toma, etc. |
 | `reglamento.html` | Los 21 artículos con buscador y preguntas frecuentes |
+| `informe.html` | Informe anual imprimible para la asamblea: cifras, ingresos, gastos por rubro, barrios, cobros, pendientes y firmas |
 | `tesoreria.html` | Con clave: caja (conteo y gastos) y padrón: cobrar (escribe recibo y monto en el padrón), toma nueva, corregir datos, dar de baja, bitácora |
 
 ## De dónde salen los datos

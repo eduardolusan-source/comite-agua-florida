@@ -204,7 +204,7 @@
       try {
         const d = await pedir({ accion: 'datos', fresco: opc.fresco ? '1' : '' });
         if (d && d.ok && d.padron && d.padron.length > 1) {
-          return { fuente: 'vivo', fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron, caja: d.caja || null, cambios: d.cambios || [] };
+          return { fuente: 'vivo', fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron, caja: d.caja || null, cambios: d.cambios || [], pagos: d.pagos || null };
         }
       } catch (e) { console.warn('El padrón en vivo no respondió; uso la copia.', e); }
     }
@@ -242,6 +242,7 @@
     ['adeudos.html', 'Adeudos'],
     ['pendientes.html', 'Pendientes'],
     ['reglamento.html', 'Reglamento'],
+    ['informe.html', 'Informe'],
     ['tesoreria.html', 'Tesorería']
   ];
 
