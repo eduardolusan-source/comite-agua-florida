@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126d">
 </head>
 <body>
 <div class="ola-top">
@@ -27,9 +27,9 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261126c"></script>
-<script src="js/padron-copia.js?v=20261126c"></script>
-<script src="js/agua.js?v=20261126c"></script>
+<script src="js/config.js?v=20261126d"></script>
+<script src="js/padron-copia.js?v=20261126d"></script>
+<script src="js/agua.js?v=20261126d"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -50,8 +50,6 @@
       l: P.tomas.filter((t) => t.estado === 'parcial'), x: (t) => 'pagó ' + A.pesos(t.pagos[P.actual].monto) },
     { id: 'sueltos', t: 'Pagos anotados sin número de toma', d: 'Renglones al final del padrón: instalaciones o pagos que hay que pasar a su toma (o darle número a la toma nueva).',
       l: P.sueltos, x: (t) => P.anios.filter((a) => t.pagos[a.anio].pagado).map((a) => a.anio + ': ' + A.pesos(t.pagos[a.anio].monto) + ' recibo ' + A.esc(t.pagos[a.anio].recibo)).join(' · ') || 'sin monto' },
-    { id: 'sin-previo', t: 'Sin recibo de ' + P.previo, d: 'Tomas activas que no tienen recibo de la anualidad ' + P.previo + '. Puede que se haya cobrado y no se anotó.',
-      l: P.tomas.filter((t) => t.sinReciboPrevio), x: (t) => (t.estado === 'pagada' ? 'sí pagó ' + P.actual : t.estado === 'debe' ? 'tampoco pagó ' + P.actual : 'por aclarar') },
     { id: 'sin-mapa', t: 'Tomas sin barrio o sin ubicación', d: 'Les falta el barrio o las coordenadas en el padrón, por eso no salen en el mapa.',
       l: P.tomas.filter((t) => t.barrio === 'Sin barrio' || !isFinite(t.x)) },
     { id: 'cortadas', t: 'Tomas cortadas', d: 'Están en el padrón como corte. No se les cobra mientras sigan cortadas. Si alguna se reconecta: $' + C.TOMA_NUEVA + ' de toma nueva más $' + C.RECARGO + ' de multa (art. 10).',

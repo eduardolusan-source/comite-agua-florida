@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/estilo.css?v=20261126c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126d">
 </head>
 <body>
 <div class="ola-top">
@@ -59,9 +59,9 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/config.js?v=20261126c"></script>
-<script src="js/padron-copia.js?v=20261126c"></script>
-<script src="js/agua.js?v=20261126c"></script>
+<script src="js/config.js?v=20261126d"></script>
+<script src="js/padron-copia.js?v=20261126d"></script>
+<script src="js/agua.js?v=20261126d"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -110,7 +110,7 @@
   // ---------- controles ----------
   P.listaBarrios.forEach((b) => $('barrio').insertAdjacentHTML('beforeend', '<option>' + A.esc(b) + '</option>'));
   if (params.get('barrio')) $('barrio').value = params.get('barrio');
-  P.anios.forEach((a) => $('anio').insertAdjacentHTML('beforeend', '<option' + (a.anio === P.actual ? ' selected' : '') + '>' + a.anio + '</option>'));
+  P.anios.filter((a) => a.anio >= (C.ADEUDO_DESDE || 0)).forEach((a) => $('anio').insertAdjacentHTML('beforeend', '<option' + (a.anio === P.actual ? ' selected' : '') + '>' + a.anio + '</option>'));
   if (params.get('q')) $('q').value = params.get('q');
 
   $('anio').addEventListener('change', () => { P = A.interpretar(datos.filas, null, $('anio').value); pintar(true); if (elegida) ficha(elegida); });
@@ -192,7 +192,7 @@
     if (!t) return;
     const k = cat(t);
     const otras = P.tomas.filter((x) => x !== t && A.sinAcentos(x.nombre) === A.sinAcentos(t.nombre));
-    const anios = P.anios.map((a) => {
+    const anios = P.anios.filter((a) => a.anio >= (C.ADEUDO_DESDE || 0)).map((a) => {
       const p = t.pagos[a.anio], deb = t.adeudos.find((d) => d.anio === a.anio);
       return '<tr><td>' + a.anio + '</td><td>' + (p.pagado ? '✓ ' + A.pesos(p.monto) : deb ? '<b style="color:#c2412d">debe ' + A.pesos(deb.cuota + deb.recargo) + '</b>' : '—') +
         '</td><td class="chico">' + (p.pagado ? 'recibo ' + A.esc(p.recibo) : '') + '</td></tr>';

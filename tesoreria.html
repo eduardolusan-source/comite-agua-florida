@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126d">
 </head>
 <body>
 <div class="ola-top">
@@ -206,9 +206,9 @@
   </div>
 </main>
 
-<script src="js/config.js?v=20261126c"></script>
-<script src="js/padron-copia.js?v=20261126c"></script>
-<script src="js/agua.js?v=20261126c"></script>
+<script src="js/config.js?v=20261126d"></script>
+<script src="js/padron-copia.js?v=20261126d"></script>
+<script src="js/agua.js?v=20261126d"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -457,7 +457,7 @@
   }));
   const tomaPorNum = (n) => P_().tomas.find((t) => t.toma === String(n));
   const cabTomaHTML = (t) => '<h3>Toma ' + t.toma + ' · ' + A.esc(t.nombre) + '</h3><p class="chico" style="margin:0">' + A.esc(t.barrio) + ' · ' + A.esc(t.fuente) + ' · ' + ESTADO_TXT[t.estado] +
-    ' · ' + P_().anios.map((a) => a.anio + ': ' + (t.pagos[a.anio].pagado ? '✓ ' + A.pesos(t.pagos[a.anio].monto) : '—')).join(' · ') +
+    ' · ' + P_().anios.filter((a) => a.anio >= P_().desde).map((a) => a.anio + ': ' + (t.pagos[a.anio].pagado ? '✓ ' + A.pesos(t.pagos[a.anio].monto) : '—')).join(' · ') +
     (t.adeudo ? '<br><b style="color:var(--debe)">Debe ' + A.pesos(t.adeudo) + '</b>' : '') + (t.notas.length ? '<br>📝 ' + A.esc(t.notas.join(' · ')) : '') + '</p>' +
     (() => { const f = A.familia(P_(), t, datos.filas); return f.length ? '<p class="chico" style="margin:6px 0 0">👪 Mismo apellido en ' + A.esc(t.barrio) + ': ' +
       f.map((x) => 'toma ' + x.toma + ' (' + A.esc(x.nombre) + (x.adeudo ? ', debe ' + A.pesos(x.adeudo) : '') + ')').join(', ') + '</p>' : ''; })() +
@@ -478,7 +478,7 @@
   }
   function pintarAnios() {
     const t = tomaPorNum(cTomaN);
-    $('c-anios').innerHTML = P_().anios.filter((a) => a.anio >= P_().desde - 0 || !t.pagos[a.anio].pagado).map((a) =>
+    $('c-anios').innerHTML = P_().anios.filter((a) => a.anio >= P_().desde).map((a) =>
       '<button type="button" class="chip" data-a="' + a.anio + '" aria-pressed="' + (a.anio === cAnio) + '">' + a.anio + (t.pagos[a.anio].pagado ? ' ✓' : '') + '</button>').join('');
     const d = A.cuantoDebe(t, cAnio);
     const items = [];

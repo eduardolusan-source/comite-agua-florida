@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126c">
+<link rel="stylesheet" href="css/estilo.css?v=20261126d">
 </head>
 <body>
 <div class="ola-top no-imprimir">
@@ -34,9 +34,9 @@
   <article class="hoja" id="hoja"><p class="vacio">Armando el informe…</p></article>
 </main>
 
-<script src="js/config.js?v=20261126c"></script>
-<script src="js/padron-copia.js?v=20261126c"></script>
-<script src="js/agua.js?v=20261126c"></script>
+<script src="js/config.js?v=20261126d"></script>
+<script src="js/padron-copia.js?v=20261126d"></script>
+<script src="js/agua.js?v=20261126d"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -50,7 +50,7 @@
   const k = A.cuentasDeCaja(P, datos.caja);
   const pesos = A.pesos, esc = A.esc;
 
-  $('anios').innerHTML = P.anios.filter((a) => a.anio <= hoy.getFullYear()).map((a) =>
+  $('anios').innerHTML = P.anios.filter((a) => a.anio <= hoy.getFullYear() && a.anio >= (C.ADEUDO_DESDE || 0)).map((a) =>
     '<a class="chip" aria-pressed="' + (a.anio === Y) + '" href="?anio=' + a.anio + '">' + a.anio + '</a>').join('');
 
   // ---------- dinero del año ----------
