@@ -417,3 +417,28 @@ details.mas[open] summary::before { content: '－ '; }
 .volver { margin: -50px 0 14px; position: relative; z-index: 3; }
 @media (max-width: 700px) { .volver { margin-top: -54px; } }
 .nota-caja { flex-basis: 100%; margin-top: 6px; font-size: .88rem; color: #fff; opacity: .9; }
+
+/* ---------- Cobrar: la cuenta de la persona ---------- */
+.cuenta-cab h3 { margin: 0 0 2px; font-size: 1.4rem; }
+.cuenta-cab { margin-bottom: 12px; }
+.cuenta-toma { border: 2px solid var(--linea); border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+.cuenta-toma-cab { margin-bottom: 6px; }
+.cuenta-toma-cab .quitar { float: right; }
+.cuenta-item { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-top: 1px solid var(--linea); cursor: pointer; }
+.cuenta-item input { width: 22px; height: 22px; accent-color: var(--rio); flex: none; }
+.cuenta-item span { flex: 1; }
+.cuenta-item b { font-family: var(--serif); }
+.cuenta-item.sub { padding-left: 30px; font-size: .92rem; color: var(--gris); }
+.al-corriente { color: var(--bien); margin: 4px 0; }
+.cuenta-mas { margin: 4px 0 12px; }
+.cuenta-total { display: flex; justify-content: space-between; align-items: baseline; background: var(--hondo); color: #fff; border-radius: 14px; padding: 14px 18px; margin-bottom: 14px; }
+.cuenta-total b { font-family: var(--serif); font-size: 2rem; }
+.aviso-guardado { background: var(--bien-suave); color: #1f5e3d; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 1rem; }
+.hoy { margin-top: 16px; }
+.hoy .que a { font-size: .85rem; }
+.cola-banda { background: var(--aviso-suave); border: 1px solid var(--aviso); color: #6b4f00; border-radius: 12px; padding: 10px 14px; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: .95rem; }
+.cola-banda.mal { background: var(--debe-suave); border-color: var(--debe); color: var(--debe); }
+.cola-banda button { margin-left: auto; }
+.buscar { scroll-margin-top: 80px; }
+#adentro input, #adentro textarea, #adentro select { scroll-margin-top: 90px; scroll-margin-bottom: 120px; }
+@media (max-width: 700px) { .resultados { max-height: 46vh; } }

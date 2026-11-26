@@ -260,24 +260,106 @@
     } finally { clearTimeout(t); }
   }
 
-  async function enviar(cuerpo) {
+  // ---------- envíos que aguantan la falta de internet ----------
+  // Todo lo que se anota se manda a la hoja. Si no hay señal, se guarda en el teléfono (cola) y se manda solo
+  // en cuanto vuelve el internet. Cada envío lleva un «idem» para que la hoja no lo anote dos veces.
+  const COLA = 'agua-cola', DATOS = 'agua-datos', PROBLEMAS = 'agua-cola-problemas';
+  const leer = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const escribir = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+  const oyentes = [];
+  const avisar = () => oyentes.forEach((f) => { try { f(estadoCola()); } catch (e) {} });
+  function estadoCola() { return { pendientes: leer(COLA, []), problemas: leer(PROBLEMAS, []), enLinea: navigator.onLine !== false }; }
+
+  async function enviarDirecto(cuerpo, ms) {
     // text/plain evita la consulta previa de CORS que Apps Script no contesta
-    const r = await fetch(C.SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo) });
-    return r.json();
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms || 30000);
+    try {
+      const r = await fetch(C.SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(cuerpo), signal: ctl.signal });
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+
+  // local: lo que la página puede mostrar mientras tanto (p. ej. el recibo)
+  async function enviar(cuerpo, local) {
+    if (cuerpo.accion === 'entrar') return enviarDirecto(cuerpo, 15000);
+    cuerpo.idem = cuerpo.idem || Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    if (navigator.onLine !== false && !leer(COLA, []).length) {
+      try { return await enviarDirecto(cuerpo); } catch (e) { /* sin señal: a la cola */ }
+    }
+    const cola = leer(COLA, []);
+    cola.push({ cuerpo, creado: new Date().toISOString(), local: local || null });
+    if (!escribir(COLA, cola)) return { ok: false, error: 'no hay internet y el teléfono no deja guardar' };
+    avisar();
+    setTimeout(vaciarCola, 2000);
+    return Object.assign({ ok: true, pendiente: true, folio: 'por enviar' }, local || {});
+  }
+
+  let vaciando = false;
+  async function vaciarCola() {
+    if (vaciando || !C.SCRIPT_URL) return;
+    let cola = leer(COLA, []);
+    if (!cola.length) return;
+    vaciando = true;
+    let enviados = 0;
+    try {
+      while (cola.length) {
+        const it = cola[0];
+        let r;
+        try { r = await enviarDirecto(it.cuerpo); } catch (e) { break; } // sigue sin señal
+        if (r && r.error === 'clave') break; // hay que volver a entrar
+        if (!r || !r.ok) { const pr = leer(PROBLEMAS, []); pr.push(Object.assign({}, it, { error: (r && r.error) || 'sin respuesta' })); escribir(PROBLEMAS, pr); }
+        cola.shift(); escribir(COLA, cola); enviados++;
+      }
+    } finally { vaciando = false; avisar(); }
+    if (enviados) oyentes.forEach((f) => { try { f(estadoCola(), enviados); } catch (e) {} });
+  }
+  function alCambiarCola(f) { oyentes.push(f); }
+  function olvidarProblemas() { escribir(PROBLEMAS, []); avisar(); }
+  if (typeof window.addEventListener === 'function') window.addEventListener('online', () => setTimeout(vaciarCola, 1500));
+  if (typeof navigator !== 'undefined' && typeof document.createElement === 'function') setInterval(() => { if (navigator.onLine !== false) vaciarCola(); }, 45000);
+
+  // Aplica a los datos lo que está en la cola, para que la página muestre lo anotado aunque no haya llegado a la hoja
+  function aplicarCola(d) {
+    const cola = leer(COLA, []);
+    if (!cola.length) return d;
+    const filas = d.padron.map((r) => r.slice());
+    const caja = JSON.parse(JSON.stringify(d.caja || { movimientos: [] }));
+    caja.movimientos = caja.movimientos || [];
+    const anios = columnasDeAnio(filas[0] || []);
+    cola.forEach((it) => {
+      const b = it.cuerpo, ahora = it.creado;
+      if (b.accion === 'registrar') caja.movimientos.push({ folio: 'por enviar', fecha: b.fecha, tipo: b.tipo, concepto: b.concepto, monto: +b.monto, pagado_a: b.pagado_a, nota: b.nota, registro: b.registro, estatus: 'Registrado', anotado: ahora, pendiente: true });
+      if (b.accion === 'corte') caja.movimientos.push({ folio: 'por enviar', fecha: ahora.slice(0, 10), tipo: 'Corte', concepto: 'Corte de caja', monto: +b.monto, nota: b.nota, registro: b.registro, estatus: 'Registrado', anotado: ahora, cuotas: +b.cuotas, pendiente: true });
+      const cobra = (it) => {
+        const a = anios.find((x) => x.anio === +it.anio), r = filas.find((x) => limpia(x[COL.toma]) === String(it.toma));
+        if (a && r) { const previo = esNumero(r[a.monto]) && esNumero(r[a.recibo]) ? numero(r[a.monto]) : 0; r[a.recibo] = String(b.recibo); r[a.monto] = String(previo + (+it.monto)); if (/^corte$/i.test(limpia(r[COL.tipo]))) r[COL.tipo] = 'Anualidad'; }
+      };
+      if (b.accion === 'cobrar') cobra(b);
+      if (b.accion === 'cobrar_varios') (b.items || []).forEach(cobra);
+      if (b.accion === 'estado_toma') { const r = filas.find((x) => limpia(x[COL.toma]) === String(b.toma)); if (r) r[COL.tipo] = b.nuevo; }
+    });
+    return Object.assign({}, d, { padron: filas, caja });
   }
 
   async function cargar(opc) {
     opc = opc || {};
+    let d = null, fuente = 'copia';
     if (C.SCRIPT_URL) {
       try {
-        const d = await pedir({ accion: 'datos', fresco: opc.fresco ? '1' : '' });
-        if (d && d.ok && d.padron && d.padron.length > 1) {
-          return { fuente: 'vivo', fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron, caja: d.caja || null, cambios: d.cambios || [], pagos: d.pagos || null };
-        }
-      } catch (e) { console.warn('El padrón en vivo no respondió; uso la copia.', e); }
+        const v = await pedir({ accion: 'datos', fresco: opc.fresco ? '1' : '' }, 20000);
+        if (v && v.ok && v.padron && v.padron.length > 1) { d = v; fuente = 'vivo'; escribir(DATOS, v); }
+      } catch (e) { console.warn('El padrón en vivo no respondió.', e); }
+      if (!d) { const g = leer(DATOS, null); if (g && g.padron) { d = g; fuente = 'guardado'; } }
     }
-    const copia = window.PADRON_COPIA;
-    return { fuente: 'copia', fecha: new Date(copia.fecha + 'T12:00:00'), padron: interpretar(copia.filas, null, opc.anio), filas: copia.filas, caja: null };
+    if (!d) {
+      const copia = window.PADRON_COPIA;
+      d = { padron: copia.filas, hora: copia.fecha + 'T12:00:00', caja: null, cambios: [], pagos: null };
+    }
+    const hayCola = leer(COLA, []).length > 0;
+    if (hayCola) d = aplicarCola(d);
+    return { fuente, fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron,
+      caja: d.caja || null, cambios: d.cambios || [], pagos: d.pagos || null, porEnviar: leer(COLA, []).length };
   }
 
   // Cuentas de la caja.
@@ -315,6 +397,7 @@
   ];
 
   function pintarMarco(actual) {
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
     const barra = document.createElement('header');
     barra.className = 'barra';
     barra.innerHTML = '<div class="dentro"><a class="marca" href="index.html">' + GOTA +
@@ -339,8 +422,9 @@
 
   function avisoFuente(datos) {
     if (datos.fuente === 'vivo') return '<p class="aviso-fuente vivo"><i></i>Datos en vivo del padrón · ' + fechaLarga(datos.fecha) + '</p>';
+    if (datos.fuente === 'guardado') return '<p class="aviso-fuente"><i></i>Sin internet: datos guardados en este teléfono el ' + fechaLarga(datos.fecha) + '</p>';
     return '<p class="aviso-fuente"><i></i>Copia del padrón del ' + fechaLarga(datos.fecha) + (C.SCRIPT_URL ? ' (la hoja en vivo no respondió)' : '') + '</p>';
   }
 
-  window.AGUA = { interpretar, cuantoDebe, vencido, buscarTomas, cercanas, familia, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
+  window.AGUA = { estadoCola, vaciarCola, alCambiarCola, olvidarProblemas, interpretar, cuantoDebe, vencido, buscarTomas, cercanas, familia, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
 })();

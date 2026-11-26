@@ -150,27 +150,57 @@ function doPost(e) {
   if (b.accion === 'entrar') return salida_({ ok: true });
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  lock.waitLock(25000);
   try {
-    CacheService.getScriptCache().remove('datos');
-    if (b.accion === 'registrar') return salida_(registrar_(b));
-    if (b.accion === 'anular') return salida_(anular_(b));
-    if (b.accion === 'corte') return salida_(corte_(b));
-    if (b.accion === 'cobrar') return salida_(cobrar_(b));
-    if (b.accion === 'nueva_toma') return salida_(nuevaToma_(b));
-    if (b.accion === 'estado_toma') return salida_(estadoToma_(b));
-    if (b.accion === 'editar_toma') return salida_(editarToma_(b));
-    if (b.accion === 'deshacer_cobro') return salida_(deshacerCobro_(b));
-    if (b.accion === 'preparar_anio') return salida_(prepararAnio_(Number(b.anio)));
-    if (b.accion === 'ajustes') {
-      ponerConfig_('saldo_inicial', Number(b.saldo_inicial) || 0);
-      if (b.contar_desde) ponerConfig_('contar_desde', Number(b.contar_desde));
-      return salida_({ ok: true });
+    const cache = CacheService.getScriptCache();
+    // Un mismo envío (por ejemplo, reenviado al volver la señal) se anota una sola vez
+    const idem = b.idem ? 'idem_' + String(b.idem).slice(0, 60) : '';
+    if (idem) {
+      const previo = cache.get(idem) || PropertiesService.getScriptProperties().getProperty(idem);
+      if (previo) return salida_(Object.assign(JSON.parse(previo), { repetido: true }));
     }
-    return salida_({ ok: false, error: 'acción desconocida' });
+    cache.remove('datos');
+    const res = ejecutar_(b);
+    if (idem && res && res.ok) {
+      const txt = JSON.stringify(res);
+      cache.put(idem, txt, 21600);
+      try { guardarIdem_(idem, txt); } catch (err) { /* no es grave */ }
+    }
+    return salida_(res);
+  } catch (err) {
+    return salida_({ ok: false, error: String(err.message || err) });
   } finally {
     lock.releaseLock();
   }
+}
+
+// Guarda los envíos ya hechos unos días (la caché dura 6 h; un teléfono puede tardar más en tener señal)
+function guardarIdem_(idem, txt) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(idem, txt.slice(0, 8000));
+  const lista = JSON.parse(props.getProperty('idem_lista') || '[]');
+  lista.push(idem);
+  while (lista.length > 300) props.deleteProperty(lista.shift());
+  props.setProperty('idem_lista', JSON.stringify(lista));
+}
+
+function ejecutar_(b) {
+  if (b.accion === 'registrar') return registrar_(b);
+  if (b.accion === 'anular') return anular_(b);
+  if (b.accion === 'corte') return corte_(b);
+  if (b.accion === 'cobrar') return cobrar_(b);
+  if (b.accion === 'cobrar_varios') return cobrarVarios_(b);
+  if (b.accion === 'nueva_toma') return nuevaToma_(b);
+  if (b.accion === 'estado_toma') return estadoToma_(b);
+  if (b.accion === 'editar_toma') return editarToma_(b);
+  if (b.accion === 'deshacer_cobro') return deshacerCobro_(b);
+  if (b.accion === 'preparar_anio') return prepararAnio_(Number(b.anio));
+  if (b.accion === 'ajustes') {
+    ponerConfig_('saldo_inicial', Number(b.saldo_inicial) || 0);
+    if (b.contar_desde) ponerConfig_('contar_desde', Number(b.contar_desde));
+    return { ok: true };
+  }
+  return { ok: false, error: 'acción desconocida' };
 }
 
 function registrar_(b) {
@@ -412,4 +442,23 @@ function deshacerCobro_(b) {
   bitacora_(b.registro, 'Cobro deshecho', b.toma, anio + ': se quitaron $' + monto + ' del recibo ' + recibo + (queda > 0 ? ' (quedan $' + queda + ')' : '') +
     (/^anualidad$/i.test(String(sh.getRange(fila, COL_TIPO).getDisplayValue())) ? '' : ''));
   return { ok: true, toma: String(b.toma), queda: queda };
+}
+
+// La cuenta de una persona: varias tomas y años con un solo recibo. Primero revisa todo y luego escribe.
+function cobrarVarios_(b) {
+  const items = (b.items || []).filter((it) => it && Number(it.monto) > 0);
+  if (!items.length) return { ok: false, error: 'no hay nada que cobrar' };
+  const recibo = String(b.recibo || '').trim();
+  if (!/^\d+$/.test(recibo)) return { ok: false, error: 'el número de recibo debe ser solo números' };
+  const sh = hojaPadron_();
+  for (const it of items) {
+    const fila = filaDeToma_(sh, it.toma);
+    if (!fila) return { ok: false, error: 'no encontré la toma ' + it.toma };
+    if (/^baja$/i.test(String(sh.getRange(fila, COL_TIPO).getDisplayValue()).trim())) return { ok: false, error: 'la toma ' + it.toma + ' está dada de baja' };
+    if (!(Number(it.anio) >= 2020 && Number(it.anio) <= 2100)) return { ok: false, error: 'año inválido en la toma ' + it.toma };
+  }
+  const resultados = items.map((it) => cobrar_({ toma: it.toma, anio: it.anio, monto: it.monto, recibo: recibo, conceptos: it.conceptos, nota: b.nota, registro: b.registro }));
+  const malos = resultados.filter((r) => !r.ok);
+  return { ok: !malos.length, error: malos.map((r) => r.error).join('; '), resultados: resultados, recibo: recibo,
+    total: items.reduce((s, it) => s + Number(it.monto), 0), fecha: hoyTexto_() };
 }

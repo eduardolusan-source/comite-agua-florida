@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126e">
+<link rel="stylesheet" href="css/estilo.css?v=20261126f">
 </head>
 <body>
 <div class="ola-top">
@@ -39,6 +39,7 @@
 
   <!-- 2. Adentro -->
   <div id="adentro" hidden>
+    <div id="cola" class="cola-banda" hidden></div>
     <section class="sube" id="caja">
       <div class="tarjeta caja-grande">
         <small>Hay en caja</small>
@@ -130,21 +131,22 @@
             <span class="chico">¿Está a nombre de otra persona? Prueba con el apellido y el barrio («Saenz Presa»), o con el número de un recibo de años pasados: salen todas las tomas que se pagaron juntas.</span></div>
           <div class="resultados" id="c-res" hidden></div>
           <form id="f-cobrar" hidden>
-            <div class="toma-elegida" id="c-toma"></div>
-            <span class="chico">¿Qué año paga?</span>
-            <div class="filtros" id="c-anios" style="margin-top:6px"></div>
-            <div class="conceptos" id="c-conceptos"></div>
-            <label class="campo monto"><span>Total que recibes</span><input id="c-monto2" type="number" inputmode="decimal" min="1" step="0.01" required></label>
+            <div class="cuenta-cab" id="c-cab"></div>
+            <div class="cuenta-lista" id="c-items"></div>
+            <div class="cuenta-mas" id="c-mas"></div>
+            <div class="cuenta-total"><span>Total a cobrar</span><b class="num" id="c-total">$0</b></div>
             <div class="rejilla r2" style="gap:0 16px">
-              <label class="campo"><span>Número de recibo</span><input id="c-recibo" inputmode="numeric" pattern="[0-9]+" required placeholder="Ej. 160"></label>
+              <label class="campo"><span>Número de recibo</span><input id="c-recibo" inputmode="numeric" pattern="[0-9]+" required placeholder="Ej. 160" enterkeyhint="done" autocomplete="off"></label>
               <label class="campo"><span>Nota <small style="font-weight:400;color:#5d6d76">(si quieres)</small></span><input id="c-nota2" maxlength="200" placeholder="Ej. pagó su hija Rosa"></label>
             </div>
             <p class="aviso-recibo" id="aviso-recibo" hidden></p>
             <div class="confirmar" id="c-confirmar" hidden></div>
             <p class="error" id="e-cobrar"></p>
-            <button class="boton" id="b-cobrar" style="width:100%">Revisar y guardar</button>
+            <div class="ft-botones"><button class="boton" id="b-cobrar" style="flex:2">Revisar y guardar</button>
+              <button class="boton claro" type="button" id="b-cancelar-cobro" style="flex:1">Cancelar</button></div>
           </form>
-          <div id="c-listo" hidden></div>
+          <div id="c-aviso" class="aviso-guardado" hidden></div>
+          <div id="c-hoy"></div>
         </div>
 
         <div id="p-nueva" class="p-panel" hidden>
@@ -226,9 +228,9 @@
   </div>
 </main>
 
-<script src="js/config.js?v=20261126e"></script>
-<script src="js/padron-copia.js?v=20261126e"></script>
-<script src="js/agua.js?v=20261126e"></script>
+<script src="js/config.js?v=20261126f"></script>
+<script src="js/padron-copia.js?v=20261126f"></script>
+<script src="js/agua.js?v=20261126f"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -273,14 +275,19 @@
     $('b-entrar').disabled = true; $('e-entrar').textContent = '';
     try {
       const r = await A.enviar({ accion: 'entrar', clave: v });
-      if (r.ok) { clave = v; guardado.set('agua-clave', v); abrir(); }
+      if (r.ok) { clave = v; guardado.set('agua-clave', v, true); abrir(); }
       else $('e-entrar').textContent = 'Esa no es la clave. Intenta otra vez.';
-    } catch (e) { $('e-entrar').textContent = 'No hay conexión con la hoja. Revisa el internet e intenta de nuevo.'; }
+    } catch (e) {
+      // Sin señal: si en este teléfono ya se entró con esa clave, se deja pasar
+      const antes = guardado.get('agua-clave');
+      if (antes && antes.toLowerCase() === v.toLowerCase()) { clave = antes; abrir(); }
+      else $('e-entrar').textContent = 'No hay internet. La primera vez hay que entrar con señal; después ya funciona sin ella.';
+    }
     $('b-entrar').disabled = false;
   });
 
   async function abrir() {
-    $('puerta').hidden = true; $('adentro').hidden = false;
+    $('puerta').hidden = true; $('adentro').hidden = false; pintarCola();
     $('titulo').textContent = 'Hola, tesorera 💧';
     $('registro').value = guardado.get('agua-nombre') || 'Araceli';
     $('fecha').value = hoyISO();
@@ -481,108 +488,230 @@
       f.map((x) => 'toma ' + x.toma + ' (' + A.esc(x.nombre) + (x.adeudo ? ', debe ' + A.pesos(x.adeudo) : '') + ')').join(', ') + '</p>' : ''; })() +
     (isFinite(t.lat) ? '<p class="chico" style="margin:6px 0 0"><a href="mapa.html?toma=' + t.toma + '" target="_blank">Ver dónde está en el mapa ›</a></p>' : '');
 
-  // ---------- Cobrar ----------
-  let cTomaN = null, cAnio = null;
+  // ---------- Cobrar: la cuenta de la persona ----------
+  // Se busca a la persona, aparecen todas sus tomas con lo que debe cada una, se marcan las que paga
+  // y se guarda todo con un solo recibo. Se manda por detrás: la pantalla queda lista para la siguiente persona.
+  let cTomas = [], cAdelantar = false;
+  const HOY_K = 'agua-cobros-hoy', REC_K = 'agua-ultimo-recibo';
+  const hoyClave = () => new Date().toISOString().slice(0, 10);
+  const leerHoy = () => { try { const v = JSON.parse(localStorage.getItem(HOY_K) || '{}'); return v.dia === hoyClave() ? v.lista : []; } catch (e) { return []; } };
+  const guardarHoy = (l) => { try { localStorage.setItem(HOY_K, JSON.stringify({ dia: hoyClave(), lista: l })); } catch (e) {} };
+  const reciboSiguiente = () => { try { const n = parseInt(localStorage.getItem(REC_K), 10); return n > 0 ? String(n + 1) : ''; } catch (e) { return ''; } };
+
   $('c-q').addEventListener('input', () => { const q = $('c-q').value; pintarResultados($('c-res'), q.trim() ? buscar(q) : [], elegirCobro); if (!q.trim()) $('c-res').hidden = true; });
   function elegirCobro(n) {
     const t = tomaPorNum(n); if (!t) return;
-    cTomaN = t.toma; $('c-listo').hidden = true; $('f-cobrar').hidden = false; $('e-cobrar').textContent = '';
-    $('c-q').value = t.toma + ' · ' + t.nombre;
-    $('c-toma').innerHTML = cabTomaHTML(t);
-    if (t.estado === 'baja') { $('e-cobrar').textContent = 'Esta toma está dada de baja. Primero reactívala en «Corregir o dar de baja».'; }
-    cAnio = t.adeudos.length ? t.adeudos[0].anio : P_().actual;
-    pintarAnios();
-    $('c-recibo').value = ''; $('c-nota2').value = ''; $('c-confirmar').hidden = true; $('aviso-recibo').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar';
+    // todas las tomas a nombre de la misma persona
+    cTomas = P_().tomas.filter((x) => x.estado !== 'baja' && A.sinAcentos(x.nombre) === A.sinAcentos(t.nombre)).map((x) => x.toma);
+    if (!cTomas.includes(t.toma)) cTomas.unshift(t.toma);
+    cAdelantar = false;
+    $('c-aviso').hidden = true; $('f-cobrar').hidden = false; $('c-res').hidden = true; $('e-cobrar').textContent = '';
+    $('c-q').value = t.nombre;
+    $('c-recibo').value = reciboSiguiente(); $('c-nota2').value = '';
+    pintarCuenta();
+    $('f-cobrar').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  function pintarAnios() {
-    const t = tomaPorNum(cTomaN);
-    $('c-anios').innerHTML = P_().anios.filter((a) => a.anio >= P_().desde).map((a) =>
-      '<button type="button" class="chip" data-a="' + a.anio + '" aria-pressed="' + (a.anio === cAnio) + '">' + a.anio + (t.pagos[a.anio].pagado ? ' ✓' : '') + '</button>').join('');
-    const d = A.cuantoDebe(t, cAnio);
-    const items = [];
-    if (d.cuota > 0) items.push(['Anualidad ' + cAnio, d.cuota, true, 'Anualidad']);
-    else items.push(['Anualidad ' + cAnio + ' (ya pagada)', C.CUOTA, false, 'Anualidad']);
-    items.push(['Recargo por pagar después del 31 de marzo', C.RECARGO, d.recargo > 0, 'Recargo']);
-    items.push(['Reconexión (la toma estaba cortada)', C.RECONEXION, t.estado === 'cortada', 'Reconexión']);
-    $('c-conceptos').innerHTML = items.map((it) => '<label><input type="checkbox" data-m="' + it[1] + '" data-n="' + it[3] + '"' + (it[2] ? ' checked' : '') + '><span>' + it[0] + '</span><b>' + A.pesos(it[1]) + '</b></label>').join('');
+  function agregarToma(n) { if (!cTomas.includes(String(n))) cTomas.push(String(n)); pintarCuenta(); }
+  function quitarToma(n) { cTomas = cTomas.filter((x) => x !== String(n)); if (!cTomas.length) cancelarCobro(); else pintarCuenta(); }
+
+  // Lo que se puede cobrar de cada toma: años sin pagar (desde 2026) y, si se quiere, el año siguiente por adelantado
+  function itemsDe(t) {
+    const P = P_(), hoy = new Date();
+    const hasta = hoy.getFullYear() + (cAdelantar ? 1 : 0);
+    const out = [];
+    P.anios.filter((a) => a.anio >= P.desde && a.anio <= hasta).forEach((a) => {
+      const d = A.cuantoDebe(t, a.anio);
+      if (d.cuota > 0) out.push({ toma: t.toma, anio: a.anio, cuota: d.cuota, recargo: d.recargo, adelanto: a.anio > hoy.getFullYear() });
+    });
+    if (t.estado === 'cortada') { out.forEach((it) => (it.cortada = true)); out.push({ toma: t.toma, anio: Math.min(hoy.getFullYear(), P.anios[P.anios.length - 1].anio), reconexion: C.RECONEXION, cortada: true }); }
+    return out;
+  }
+
+  function pintarCuenta() {
+    const P = P_();
+    const tomas = cTomas.map(tomaPorNum).filter(Boolean);
+    const quien = tomas[0];
+    let html = '', clave = 0;
+    tomas.forEach((t) => {
+      const items = itemsDe(t);
+      html += '<div class="cuenta-toma"><div class="cuenta-toma-cab"><b>Toma ' + t.toma + '</b> · ' + A.esc(t.barrio) + ' · agua ' + A.esc(t.fuente).toLowerCase() +
+        (A.sinAcentos(t.nombre) !== A.sinAcentos(quien.nombre) ? ' · <i>a nombre de ' + A.esc(t.nombre) + '</i>' : '') +
+        ' <button type="button" class="quitar" data-quitar="' + t.toma + '">quitar</button></div>';
+      if (t.estado === 'aclarar') html += '<p class="chico" style="margin:2px 0 6px">⚠ Por aclarar: ' + A.esc(t.notas.join(' · ')) + '</p>';
+      if (t.estado === 'cortada') html += '<p class="chico" style="margin:2px 0 6px">✂ Está cortada: solo se cobra si se va a reconectar (marca la reconexión).' + (t.notas.length ? ' Nota: ' + A.esc(t.notas.join(' · ')) : '') + '</p>';
+      if (!items.length) html += '<p class="chico al-corriente">✓ Al corriente' + (cAdelantar ? '' : ' (puede adelantar el año siguiente)') + '</p>';
+      items.forEach((it) => {
+        const id = 'ci' + (clave++);
+        if (it.reconexion) {
+          html += '<label class="cuenta-item"><input type="checkbox" data-reconexion="' + t.toma + '" data-it="' + A.esc(JSON.stringify(it)) + '" data-m="' + it.reconexion + '"><span>Reconectar la toma (art. 10)</span><b>' + A.pesos(it.reconexion) + '</b></label>';
+        } else {
+          const marcar = it.cortada ? '' : ' checked';
+          html += '<label class="cuenta-item"><input type="checkbox"' + marcar + ' id="' + id + '" data-toma="' + t.toma + '" data-it="' + A.esc(JSON.stringify(it)) + '" data-m="' + it.cuota + '"><span>Anualidad ' + it.anio + (it.adelanto ? ' (adelantada)' : '') + '</span><b>' + A.pesos(it.cuota) + '</b></label>';
+          if (it.recargo) html += '<label class="cuenta-item sub"><input type="checkbox"' + marcar + ' data-recargo="' + id + '" data-m="' + it.recargo + '"><span>' + (it.cortada ? 'Multa por atraso' : 'Recargo ' + it.anio + ' (pagó después del 31 de marzo)') + '</span><b>' + A.pesos(it.recargo) + '</b></label>';
+        }
+      });
+      html += '</div>';
+    });
+    $('c-items').innerHTML = html;
+    const deuda = tomas.reduce((s, t) => s + t.adeudo, 0);
+    $('c-cab').innerHTML = '<h3>' + A.esc(quien.nombre) + '</h3><p class="chico" style="margin:0">' + tomas.length + (tomas.length === 1 ? ' toma' : ' tomas') +
+      (deuda ? ' · debe en total <b style="color:var(--debe)">' + A.pesos(deuda) + '</b>' : ' · al corriente') + '</p>';
+    // agregar otras tomas: familia y búsqueda
+    const fam = [];
+    tomas.forEach((t) => A.familia(P, t, datos.filas).forEach((f) => { if (f.adeudo > 0 && !cTomas.includes(f.toma) && !fam.includes(f)) fam.push(f); }));
+    const hayAdelanto = P.anios.some((a) => a.anio === new Date().getFullYear() + 1);
+    $('c-mas').innerHTML = (fam.length ? '<p class="chico" style="margin:0 0 6px">👪 En el barrio también deben (mismo apellido). ¿Paga alguna?</p><div class="filtros">' +
+        fam.slice(0, 4).map((f) => '<button type="button" class="chip" data-agregar="' + f.toma + '">+ toma ' + f.toma + ' · ' + A.esc(f.nombre) + (f.adeudo ? ' · ' + A.pesos(f.adeudo) : ' ✓') + '</button>').join('') + '</div>' : '') +
+      '<div class="ft-botones" style="margin-top:6px"><button type="button" class="boton claro" id="c-otra">+ Agregar otra toma</button>' +
+      (hayAdelanto ? '<button type="button" class="boton claro" id="c-adel">' + (cAdelantar ? '− Sin adelantar ' + (new Date().getFullYear() + 1) : '+ Adelantar ' + (new Date().getFullYear() + 1)) + '</button>' : '') + '</div>' +
+      '<div id="c-otra-box" hidden><input class="buscar" id="c-q2" type="search" placeholder="Buscar la otra toma (nombre, número…)" autocomplete="off"><div class="resultados" id="c-res2" hidden></div></div>';
+    $('c-otra').onclick = () => { $('c-otra-box').hidden = false; $('c-q2').focus(); };
+    $('c-q2').oninput = () => { const q = $('c-q2').value; pintarResultados($('c-res2'), q.trim() ? buscar(q) : [], agregarToma); if (!q.trim()) $('c-res2').hidden = true; };
+    if ($('c-adel')) $('c-adel').onclick = () => { cAdelantar = !cAdelantar; pintarCuenta(); };
     sumar();
   }
-  $('c-anios').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) { cAnio = +b.dataset.a; pintarAnios(); $('c-confirmar').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar'; } });
-  $('c-conceptos').addEventListener('change', sumar);
-  function sumar() { $('c-monto2').value = [...document.querySelectorAll('#c-conceptos input:checked')].reduce((s, i) => s + (+i.dataset.m), 0) || ''; }
+  $('c-items').addEventListener('change', (e) => {
+    const i = e.target; if (i.id && !i.checked) { const r = document.querySelector('[data-recargo="' + i.id + '"]'); if (r) r.checked = false; }
+    if (i.dataset.recargo && i.checked) { const p = $(i.dataset.recargo); if (p) p.checked = true; }
+    if (i.dataset.reconexion && i.checked) document.querySelectorAll('#c-items [data-toma="' + i.dataset.reconexion + '"]').forEach((x) => { x.checked = true; const r = document.querySelector('[data-recargo="' + x.id + '"]'); if (r) r.checked = true; });
+    sumar();
+  });
+  $('c-items').addEventListener('click', (e) => { const b = e.target.closest('[data-quitar]'); if (b) { e.preventDefault(); quitarToma(b.dataset.quitar); } });
+  $('c-mas').addEventListener('click', (e) => { const b = e.target.closest('[data-agregar]'); if (b) agregarToma(b.dataset.agregar); });
+  function sumar() {
+    const total = [...document.querySelectorAll('#c-items input:checked')].reduce((s, i) => s + (+i.dataset.m), 0);
+    $('c-total').textContent = A.pesos(total);
+    $('c-confirmar').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar';
+    return total;
+  }
+  // Lo marcado, agrupado por toma y año, como se escribe en el padrón
+  function itemsMarcados() {
+    const grupos = {};
+    document.querySelectorAll('#c-items input[data-it]:checked').forEach((i) => {
+      const it = JSON.parse(i.dataset.it), k = it.toma + '|' + it.anio;
+      const g = (grupos[k] = grupos[k] || { toma: it.toma, anio: it.anio, monto: 0, conceptos: [] });
+      if (it.reconexion) { g.monto += it.reconexion; g.conceptos.push('Reconexión'); }
+      else {
+        g.monto += it.cuota; g.conceptos.push('Anualidad');
+        const r = document.querySelector('[data-recargo="' + i.id + '"]');
+        if (r && r.checked) { g.monto += +r.dataset.m; g.conceptos.push('Recargo'); }
+      }
+    });
+    return Object.values(grupos);
+  }
+  function cancelarCobro() { $('f-cobrar').hidden = true; cTomas = []; $('c-q').value = ''; $('c-q').focus(); }
+  $('b-cancelar-cobro').onclick = cancelarCobro;
 
   function reciboHTML(r, conceptos) {
     const texto = 'Comité de Agua de La Florida\nRecibo ' + r.recibo + ' · ' + r.fecha + '\nToma ' + r.toma + ' · ' + r.nombre + '\n' +
       (conceptos ? conceptos + ' ' : '') + r.anio + ': $' + r.monto + '\nGracias por cuidar el agua 💧';
-    return '<div class="recibo-ok"><h3>✓ Quedó en el padrón</h3><p style="white-space:pre-line;margin:0 0 12px">' + A.esc(texto) + '</p>' +
+    return '<div class="recibo-ok"><h3>✓ ' + (r.pendiente ? 'Guardado en el teléfono (se manda al volver la señal)' : 'Quedó en el padrón') + '</h3><p style="white-space:pre-line;margin:0 0 12px">' + A.esc(texto) + '</p>' +
       '<div class="ft-botones"><a class="boton" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(texto) + '">Mandar por WhatsApp</a>' +
-      '<button class="boton claro" type="button" data-otro="1">Cobrar a otra persona</button></div></div>';
+      '<button class="boton claro" type="button" data-otro="1">Listo</button></div></div>';
   }
+  const textoCobro = (c) => 'Comité de Agua de La Florida\nRecibo ' + c.recibo + ' · ' + c.fecha + '\n' + c.nombre + '\n' +
+    c.items.map((g) => 'Toma ' + g.toma + ' · ' + g.anio + ' · ' + g.conceptos.join(' + ') + ': $' + g.monto).join('\n') + '\nTotal: $' + c.total + '\nGracias por cuidar el agua 💧';
 
   // Aviso si el número de recibo ya se usó con otra persona
   function reciboUsado(recibo) {
-    const t = tomaPorNum(cTomaN); if (!recibo || !t) return [];
-    return P_().tomas.filter((x) => x !== t && P_().anios.some((a) => x.pagos[a.anio].recibo === recibo && a.anio === cAnio) && A.sinAcentos(x.nombre) !== A.sinAcentos(t.nombre));
+    if (!recibo || !cTomas.length) return [];
+    const nom = A.sinAcentos(tomaPorNum(cTomas[0]).nombre), anio = new Date().getFullYear();
+    const enPadron = P_().tomas.filter((x) => !cTomas.includes(x.toma) && x.pagos[anio] && x.pagos[anio].recibo === recibo && A.sinAcentos(x.nombre) !== nom).map((x) => 'la toma ' + x.toma + ' (' + x.nombre + ')');
+    const enHoy = leerHoy().filter((c) => c.recibo === recibo && A.sinAcentos(c.nombre) !== nom).map((c) => c.nombre + ' (hoy)');
+    return enPadron.concat(enHoy);
   }
   $('c-recibo').addEventListener('input', () => {
     const u = reciboUsado($('c-recibo').value.trim());
     $('aviso-recibo').hidden = !u.length;
-    $('aviso-recibo').textContent = u.length ? '⚠ El recibo ' + $('c-recibo').value.trim() + ' de ' + cAnio + ' ya está en ' + u.slice(0, 3).map((x) => 'la toma ' + x.toma + ' (' + x.nombre + ')').join(', ') + '. ¿Es el número correcto?' : '';
+    $('aviso-recibo').textContent = u.length ? '⚠ El recibo ' + $('c-recibo').value.trim() + ' ya se usó con ' + u.slice(0, 3).join(', ') + '. ¿Es el número correcto?' : '';
     $('c-confirmar').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar';
   });
-  ['c-monto2', 'c-nota2'].forEach((id) => $(id).addEventListener('input', () => { $('c-confirmar').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar'; }));
-  $('c-conceptos').addEventListener('change', () => { $('c-confirmar').hidden = true; $('b-cobrar').textContent = 'Revisar y guardar'; });
 
-  $('f-cobrar').addEventListener('submit', async (ev) => {
+  $('f-cobrar').addEventListener('submit', (ev) => {
     ev.preventDefault();
-    const monto = parseFloat($('c-monto2').value), recibo = $('c-recibo').value.trim();
-    if (!(monto > 0)) { $('e-cobrar').textContent = 'Escribe cuánto recibes.'; return; }
+    const items = itemsMarcados(), recibo = $('c-recibo').value.trim();
+    const total = items.reduce((s, g) => s + g.monto, 0);
+    if (!items.length) { $('e-cobrar').textContent = 'Marca lo que va a pagar.'; return; }
     if (!/^\d+$/.test(recibo)) { $('e-cobrar').textContent = 'El número de recibo va solo con números.'; return; }
-    const conceptos = [...document.querySelectorAll('#c-conceptos input:checked')].map((i) => i.dataset.n);
-    const t = tomaPorNum(cTomaN);
-    // Primer toque: mostrar el resumen para confirmar
+    $('e-cobrar').textContent = '';
+    const nombre = tomaPorNum(cTomas[0]).nombre;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // que el teclado no tape el resumen
     if ($('c-confirmar').hidden) {
       $('c-confirmar').hidden = false;
-      $('c-confirmar').innerHTML = '<b>¿Todo bien?</b><br>Toma <b>' + t.toma + '</b> · ' + A.esc(t.nombre) + ' · ' + A.esc(t.barrio) + ' · agua ' + A.esc(t.fuente).toLowerCase() +
-        '<br>' + (conceptos.join(' + ') || 'Pago') + ' ' + cAnio + ': <b>' + A.pesos(monto) + '</b> · recibo <b>' + A.esc(recibo) + '</b>' +
-        '<br><span class="chico">Si la toma no es la de esta persona, busca de nuevo arriba antes de guardar.</span>';
-      $('b-cobrar').textContent = 'Sí, guardar el pago';
-      $('c-confirmar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('c-confirmar').innerHTML = '<b>¿Todo bien?</b> ' + A.esc(nombre) + ' · recibo <b>' + A.esc(recibo) + '</b><br>' +
+        items.map((g) => 'Toma ' + g.toma + ' · ' + g.anio + ' · ' + g.conceptos.join(' + ') + ': <b>' + A.pesos(g.monto) + '</b>').join('<br>') +
+        '<br>Total: <b>' + A.pesos(total) + '</b>';
+      $('b-cobrar').textContent = 'Sí, guardar';
+      setTimeout(() => $('c-confirmar').scrollIntoView({ behavior: 'smooth', block: 'center' }), 250);
       return;
     }
-    $('b-cobrar').disabled = true; $('b-cobrar').textContent = 'Guardando…'; $('e-cobrar').textContent = '';
-    try {
-      const r = await A.enviar({ accion: 'cobrar', clave, toma: cTomaN, anio: cAnio, monto, recibo, conceptos, nota: $('c-nota2').value.trim(), registro: $('registro').value.trim() });
-      if (!r.ok) throw new Error(r.error === 'clave' ? 'la clave cambió, vuelve a entrar' : r.error);
-      $('f-cobrar').hidden = true; $('c-listo').hidden = false; $('c-confirmar').hidden = true;
-      $('c-listo').innerHTML = reciboHTML(r, conceptos.join(' + ')) +
-        '<p class="chico" style="margin-top:10px">¿Te equivocaste de toma o de monto? <button type="button" class="quitar" data-deshacer="' + A.esc(JSON.stringify({ toma: r.toma, anio: r.anio, monto: r.monto, recibo: r.recibo })) + '">Deshacer este cobro</button></p>';
-      await refrescar(true);
-      const t2 = tomaPorNum(r.toma);
-      const otras = A.familia(P_(), t2, datos.filas).filter((x) => x.adeudo > 0);
-      if (otras.length) $('c-listo').insertAdjacentHTML('beforeend', '<p class="chico" style="margin-top:10px">En la misma familia también deben: ' +
-        otras.map((o) => '<button type="button" class="chip" data-cobrar="' + o.toma + '">toma ' + o.toma + ' · ' + A.esc(o.nombre) + ' · ' + A.pesos(o.adeudo) + '</button>').join(' ') + '</p>');
-    } catch (err) { $('e-cobrar').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
-    $('b-cobrar').disabled = false; $('b-cobrar').textContent = 'Revisar y guardar';
+    // Guardar por detrás y dejar lista la pantalla para la siguiente persona
+    const cobro = { id: Date.now().toString(36), nombre, recibo, total, items, fecha: hoyClave(), estado: 'enviando', hora: new Date().toTimeString().slice(0, 5) };
+    const lista = leerHoy(); lista.unshift(cobro); guardarHoy(lista);
+    try { localStorage.setItem(REC_K, recibo); } catch (e) {}
+    const nota = $('c-nota2').value.trim(), registro = $('registro').value.trim();
+    A.enviar({ accion: 'cobrar_varios', clave, items, recibo, nota, registro }, { recibo, total }).then((r) => {
+      marcarHoy(cobro.id, r.ok ? (r.pendiente ? 'por enviar' : 'enviado') : 'error', r.ok ? '' : r.error);
+      if (r.ok && !r.pendiente) refrescarSuave();
+    }).catch((e) => marcarHoy(cobro.id, 'error', e.message));
+    $('f-cobrar').hidden = true; cTomas = [];
+    $('c-aviso').hidden = false;
+    $('c-aviso').innerHTML = '✓ ' + A.esc(nombre) + ' · ' + A.pesos(total) + ' · recibo ' + A.esc(recibo) + ' — <b>siguiente persona</b> 👇';
+    $('c-q').value = ''; pintarHoy();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => $('c-q').focus(), 300);
   });
 
-  // Deshacer un cobro (desde el recibo o desde el historial)
+  function marcarHoy(id, estado, error) {
+    const l = leerHoy(); const c = l.find((x) => x.id === id);
+    if (c) { c.estado = estado; c.error = error || ''; guardarHoy(l); }
+    pintarHoy();
+  }
+  // Los cobros que quedaron en la cola se marcan «enviado» cuando la cola se vacía
+  A.alCambiarCola((st, enviados) => {
+    if (!enviados) return;
+    const l = leerHoy(); let cambio = false;
+    l.forEach((c) => { if (c.estado === 'por enviar' && !st.pendientes.some((p) => p.cuerpo.recibo === c.recibo && p.cuerpo.accion === 'cobrar_varios')) { c.estado = 'enviado'; cambio = true; } });
+    if (cambio) { guardarHoy(l); pintarHoy(); }
+  });
+  let tRefresco = null;
+  function refrescarSuave() { clearTimeout(tRefresco); tRefresco = setTimeout(() => refrescar(true), 4000); }
+
+  function pintarHoy() {
+    const l = leerHoy();
+    if (!l.length) { $('c-hoy').innerHTML = ''; return; }
+    const total = l.filter((c) => c.estado !== 'deshecho').reduce((s, c) => s + c.total, 0);
+    const ic = { enviando: '⏳ enviando', 'por enviar': '📤 en el teléfono', enviado: '✓ en la hoja', error: '⚠ no se guardó', deshecho: '↩ deshecho' };
+    $('c-hoy').innerHTML = '<div class="tarjeta hoy"><div class="resumen-linea" style="margin:0 0 6px"><h3 style="margin:0">Cobros de hoy</h3><span class="chico">' + l.filter((c) => c.estado !== 'deshecho').length + ' personas · <b>' + A.pesos(total) + '</b></span></div>' +
+      l.map((c) => '<div class="mov' + (c.estado === 'deshecho' ? ' anulado' : '') + '"><div class="fecha"><b>' + c.hora + '</b></div><div class="que"><b>' + A.esc(c.nombre) + '</b><span>recibo ' + A.esc(c.recibo) + ' · tomas ' + c.items.map((g) => g.toma + ' (' + g.anio + ')').join(', ') + ' · ' + ic[c.estado] + (c.error ? ': ' + A.esc(c.error) : '') + '</span>' +
+        (c.estado !== 'deshecho' && c.estado !== 'error' ? '<span><a target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(textoCobro(c)) + '">WhatsApp</a>' +
+          (c.estado === 'enviado' ? ' · <button type="button" class="quitar" data-deshacer-cobro="' + c.id + '">deshacer</button>' : '') + '</span>' : '') +
+        '</div><div class="cuanto num entra">' + A.pesos(c.total) + '</div></div>').join('') + '</div>';
+  }
+  $('c-hoy').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-deshacer-cobro]'); if (!b) return;
+    const c = leerHoy().find((x) => x.id === b.dataset.deshacerCobro); if (!c) return;
+    if (!confirm('¿Deshacer el cobro de ' + c.nombre + ' (' + A.pesos(c.total) + ', recibo ' + c.recibo + ')? Se resta del padrón.')) return;
+    b.disabled = true; b.textContent = 'deshaciendo…';
+    for (const g of c.items) {
+      const r = await A.enviar({ accion: 'deshacer_cobro', clave, toma: g.toma, anio: g.anio, monto: g.monto, recibo: c.recibo, registro: $('registro').value.trim() });
+      if (!r.ok) { alert('No se pudo deshacer la toma ' + g.toma + ': ' + r.error); b.disabled = false; b.textContent = 'deshacer'; return; }
+    }
+    marcarHoy(c.id, 'deshecho'); refrescarSuave();
+  });
+
+  // Deshacer un cobro desde el historial
   async function deshacer(d, boton) {
     if (!confirm('¿Deshacer el cobro de la toma ' + d.toma + ' (' + d.anio + ', ' + A.pesos(d.monto) + ', recibo ' + d.recibo + ')? Se resta del padrón y queda anotado en el historial.')) return;
     boton.disabled = true; boton.textContent = 'Deshaciendo…';
     try {
       const r = await A.enviar(Object.assign({ accion: 'deshacer_cobro', clave, registro: $('registro').value.trim() }, d));
       if (!r.ok) throw new Error(r.error);
-      boton.textContent = 'Deshecho ✓';
+      boton.textContent = r.pendiente ? 'Se deshará al volver la señal' : 'Deshecho ✓';
       await refrescar(true); pintarCambios();
     } catch (err) { boton.disabled = false; boton.textContent = 'Deshacer'; alert('No se pudo deshacer: ' + (err.message || 'sin conexión')); }
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-deshacer]'); if (b) deshacer(JSON.parse(b.dataset.deshacer), b); });
-
-  $('c-listo').addEventListener('click', (e) => {
-    if (e.target.closest('[data-otro]')) { $('c-listo').hidden = true; $('c-q').value = ''; $('c-q').focus(); }
-    const o = e.target.closest('[data-cobrar]'); if (o) elegirCobro(o.dataset.cobrar);
-  });
 
   // ---------- Toma nueva ----------
   function prepararNueva() {
@@ -612,12 +741,14 @@
       if (!r.ok) throw new Error(r.error);
       $('f-nueva').reset(); prepararNueva();
       $('n-listo').hidden = false;
-      $('n-listo').innerHTML = '<p class="frase" style="margin:10px 0">Nueva toma número <b>' + A.esc(r.toma) + '</b> 🎉</p>' + reciboHTML(r, 'Toma nueva + anualidad');
+      $('n-listo').innerHTML = r.pendiente
+        ? '<p class="frase" style="margin:10px 0">📤 Guardada en el teléfono. Recibirá su número de toma cuando vuelva la señal.</p><div class="ft-botones"><button class="boton claro" type="button" data-otro="1">Listo</button></div>'
+        : '<p class="frase" style="margin:10px 0">Nueva toma número <b>' + A.esc(r.toma) + '</b> 🎉</p>' + reciboHTML(r, 'Toma nueva + anualidad');
       await refrescar(true);
     } catch (err) { $('e-nueva').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
     $('b-nueva').disabled = false;
   });
-  $('n-listo').addEventListener('click', (e) => { if (e.target.closest('[data-otro]')) { $('n-listo').hidden = true; abrirPanel('cobrar'); } });
+  $('n-listo').addEventListener('click', (e) => { if (e.target.closest('[data-otro]')) { $('n-listo').hidden = true; ver('inicio'); } });
 
   // ---------- Corregir o dar de baja ----------
   let tTomaN = null;
@@ -691,6 +822,19 @@
     if (n) (acc === 'toma' ? elegirToma : elegirCobro)(n);
   }
 
+  // =================== Teclado del celular ===================
+  // Al abrirse, el teclado tapa la mitad de abajo: el campo tocado se sube; los buscadores van arriba para que se vean los resultados.
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!el.matches || !el.matches('#adentro input, #adentro textarea, #adentro select')) return;
+    if (el.type === 'checkbox' || el.type === 'radio') return;
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: el.classList.contains('buscar') ? 'start' : 'center' }), 350);
+  });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
+    const el = document.activeElement;
+    if (el && el.matches && el.matches('#adentro input, #adentro textarea') && el.type !== 'checkbox') el.scrollIntoView({ block: el.classList.contains('buscar') ? 'start' : 'center' });
+  });
+
   // =================== Una pantalla a la vez ===================
   const TIT_PADRON = { cobrar: 'Cobrar', nueva: 'Toma nueva', toma: 'Corregir o dar de baja', cambios: 'Historial de cambios' };
   function ver(v, sinHistoria) {
@@ -710,6 +854,7 @@
       pintarAtajos();
     }
     if (TIT_PADRON[v]) { $('t-padron').textContent = TIT_PADRON[v]; abrirPanel(v); }
+    if (v === 'cobrar') { pintarHoy(); $('c-aviso').hidden = true; setTimeout(() => { if ($('f-cobrar').hidden) $('c-q').focus(); }, 350); }
     if (v === 'contar') { $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = ''; setTimeout(() => $('c-monto').focus(), 50); }
     if (!sinHistoria) history.pushState({ v }, '', inicio ? location.pathname : '#' + v);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -719,8 +864,24 @@
 
   // Si ya había entrado en esta sesión, pasa directo
   if (clave && C.SCRIPT_URL) {
-    A.enviar({ accion: 'entrar', clave }).then((r) => { if (r.ok) abrir(); }).catch(() => {});
+    A.enviar({ accion: 'entrar', clave }).then((r) => { if (r.ok) abrir(); }).catch(() => abrir());
   }
+
+  // ---------- Banda de «por enviar» ----------
+  function pintarCola(st) {
+    st = st || A.estadoCola();
+    const n = st.pendientes.length, m = st.problemas.length, b = $('cola');
+    if (!n && !m) { b.hidden = true; return; }
+    b.hidden = false; b.classList.toggle('mal', !!m);
+    b.innerHTML = (n ? '📤 <b>' + n + (n === 1 ? ' movimiento guardado' : ' movimientos guardados') + ' en este teléfono.</b> Se mandan solos cuando haya internet.' : '') +
+      (m ? ' ⚠ <b>' + m + (m === 1 ? ' no se pudo guardar' : ' no se pudieron guardar') + '</b> en la hoja: ' + st.problemas.slice(0, 3).map((p) => A.esc((p.cuerpo.accion || '') + ' — ' + p.error)).join('; ') : '') +
+      (n ? '<button type="button" class="boton claro" id="cola-ya">Enviar ahora</button>' : '<button type="button" class="boton claro" id="cola-ok">Entendido</button>');
+    if ($('cola-ya')) $('cola-ya').onclick = () => { $('cola-ya').textContent = 'Enviando…'; A.vaciarCola(); };
+    if ($('cola-ok')) $('cola-ok').onclick = () => A.olvidarProblemas();
+  }
+  A.alCambiarCola((st, enviados) => { pintarCola(st); if (enviados && !$('adentro').hidden) refrescar(true); });
+  window.addEventListener('online', () => pintarCola());
+  window.addEventListener('offline', () => pintarCola());
 })();
 </script>
 </body>
