@@ -181,6 +181,74 @@
     return { cuota, recargo: cuota > 0 && vencido(anio, hoy) ? C.RECARGO : 0 };
   }
 
+  // ---------- buscador tolerante ----------
+  // Varias palabras (todas deben coincidir en algo): nombre, apellido, barrio, fuente, notas del padrón,
+  // notas de los pagos («pagó su hijo Juan»), número de toma o de recibo. Acepta un error de dedo.
+  function distancia(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 9;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  // sonidos que se confunden al escribir: z/s/c, b/v, y/ll, h muda
+  const fonetica = (w) => w.replace(/h/g, '').replace(/ll/g, 'y').replace(/v/g, 'b').replace(/z/g, 's').replace(/c([ei])/g, 's$1').replace(/qu/g, 'k').replace(/c/g, 'k');
+
+  function buscarTomas(P, q, pagos) {
+    const palabras = sinAcentos(q).split(/[^a-z0-9ñ]+/).filter(Boolean);
+    if (!palabras.length) return [];
+    const notasPago = {};
+    (pagos || []).forEach((p) => { if (p.nota) notasPago[p.toma] = (notasPago[p.toma] || '') + ' ' + p.nota; });
+    const out = [];
+    P.tomas.forEach((t) => {
+      const recibos = P.anios.map((a) => ({ anio: a.anio, r: t.pagos[a.anio].recibo })).filter((x) => /^\d+$/.test(x.r));
+      const textoNombre = sinAcentos(t.nombre), textoResto = sinAcentos(t.barrio + ' ' + t.fuente + ' ' + t.notas.join(' ') + ' ' + (notasPago[t.toma] || ''));
+      const palabrasT = (textoNombre + ' ' + textoResto).split(/[^a-z0-9ñ]+/).filter(Boolean);
+      let puntos = 0; const porque = [];
+      for (const p of palabras) {
+        if (/^\d+$/.test(p)) {
+          if (t.toma === p) { puntos += 100; continue; }
+          const r = recibos.find((x) => x.r === p);
+          if (r) { puntos += 60; porque.push('recibo ' + p + ' de ' + r.anio); continue; }
+          if (t.toma.startsWith(p)) { puntos += 15; continue; }
+          return;
+        }
+        if (textoNombre.split(' ').some((w) => w.startsWith(p))) { puntos += 20; continue; }
+        if (textoNombre.includes(p)) { puntos += 12; continue; }
+        if (textoResto.includes(p)) {
+          puntos += 8;
+          if ((notasPago[t.toma] || '') && sinAcentos(notasPago[t.toma]).includes(p)) porque.push('nota de pago: «' + limpia(notasPago[t.toma]) + '»');
+          else if (sinAcentos(t.notas.join(' ')).includes(p)) porque.push('nota: «' + t.notas.join(' · ') + '»');
+          continue;
+        }
+        const fp = fonetica(p);
+        const parecida = p.length >= 4 && palabrasT.find((w) => w.length >= 3 && (fonetica(w) === fp || fonetica(w).startsWith(fp) || distancia(w.slice(0, p.length + 1), p) <= (p.length >= 7 ? 2 : 1)));
+        if (parecida) { puntos += 5; porque.push('parecido a «' + p + '»: ' + parecida); continue; }
+        return;
+      }
+      out.push({ t, puntos, porque: [...new Set(porque)] });
+    });
+    return out.sort((a, b) => b.puntos - a.puntos || b.t.adeudo - a.t.adeudo || (+a.t.toma) - (+b.t.toma));
+  }
+
+  // Tomas más cercanas a un punto (para «cerca de mí»)
+  function cercanas(P, lat, lng, n) {
+    const R = 6371000, rad = Math.PI / 180;
+    return P.tomas.filter((t) => isFinite(t.lat) && t.estado !== 'baja').map((t) => {
+      const dLat = (t.lat - lat) * rad, dLng = (t.lng - lng) * rad;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat * rad) * Math.cos(t.lat * rad) * Math.sin(dLng / 2) ** 2;
+      return { t, metros: Math.round(2 * R * Math.asin(Math.sqrt(h))) };
+    }).sort((a, b) => a.metros - b.metros).slice(0, n || 12);
+  }
+
+  // Otras tomas de la misma familia: mismo apellido en el mismo barrio, o la misma persona
+  function familia(P, t, filas) {
+    const ap = (x) => sinAcentos(limpia(((filas || [])[x.fila - 1] || [])[6] || x.nombre.split(' ').slice(-1)[0]));
+    const a = ap(t);
+    return P.tomas.filter((x) => x !== t && x.estado !== 'baja' && a && ap(x) === a && (x.barrio === t.barrio || sinAcentos(x.nombre) === sinAcentos(t.nombre)));
+  }
+
   // ---------- carga ----------
   async function pedir(params, ms) {
     const url = C.SCRIPT_URL + '?' + new URLSearchParams(params).toString();
@@ -274,5 +342,5 @@
     return '<p class="aviso-fuente"><i></i>Copia del padrón del ' + fechaLarga(datos.fecha) + (C.SCRIPT_URL ? ' (la hoja en vivo no respondió)' : '') + '</p>';
   }
 
-  window.AGUA = { interpretar, cuantoDebe, vencido, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
+  window.AGUA = { interpretar, cuantoDebe, vencido, buscarTomas, cercanas, familia, cargar, cuentasDeCaja, pedir, enviar, pintarMarco, OLAS, GOTA, avisoFuente, pesos, esc, sinAcentos, fechaLarga, MESES, titulo };
 })();

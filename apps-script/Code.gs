@@ -99,8 +99,9 @@ function movimientos_() {
 function pagos_() {
   const h = libro_().getSheetByName('Pagos');
   if (!h || h.getLastRow() < 2) return [];
-  return h.getRange(2, 1, h.getLastRow() - 1, 6).getDisplayValues().filter((r) => r[0] || r[5])
-    .map((r) => ({ toma: r[0], anio: Number(r[1]) || 0, fecha: r[2], tipo: r[3], recibo: r[4], monto: Number(String(r[5]).replace(/[$,]/g, '')) || 0 }));
+  return h.getRange(2, 1, h.getLastRow() - 1, 8).getDisplayValues().filter((r) => r[0] || r[5])
+    .map((r) => ({ toma: r[0], anio: Number(r[1]) || 0, fecha: r[2], tipo: r[3], recibo: r[4], monto: Number(String(r[5]).replace(/[$,]/g, '')) || 0,
+      nota: r[7], deshecho: /^DESHECHO/.test(r[7]) }));
 }
 
 function cambios_(n) {
@@ -159,6 +160,7 @@ function doPost(e) {
     if (b.accion === 'nueva_toma') return salida_(nuevaToma_(b));
     if (b.accion === 'estado_toma') return salida_(estadoToma_(b));
     if (b.accion === 'editar_toma') return salida_(editarToma_(b));
+    if (b.accion === 'deshacer_cobro') return salida_(deshacerCobro_(b));
     if (b.accion === 'preparar_anio') return salida_(prepararAnio_(Number(b.anio)));
     if (b.accion === 'ajustes') {
       ponerConfig_('saldo_inicial', Number(b.saldo_inicial) || 0);
@@ -292,15 +294,18 @@ function cobrar_(b) {
   const previo = /^\d+(\.\d+)?$/.test(antes) && /^\d+$/.test(String(celdaRecibo.getDisplayValue()).trim()) ? Number(antes) : 0;
   const notaVieja = [celdaRecibo.getDisplayValue(), celdaMonto.getDisplayValue()].filter((v) => v && !/^[\d.$,\s]+$/.test(v)).join(' · ');
   const total = previo + monto;
+  const reciboPrevioTxt = previo ? String(celdaRecibo.getDisplayValue()).trim() : '';
   celdaRecibo.setValue(recibo);
   celdaMonto.setValue(total);
   const conceptos = (b.conceptos || []).map(String);
   if (/^corte$/i.test(tipo) || conceptos.indexOf('Reconexión') >= 0) sh.getRange(fila, COL_TIPO).setValue('Anualidad');
 
   const nombre = (sh.getRange(fila, COL_NOMBRE).getDisplayValue() + ' ' + sh.getRange(fila, COL_APELLIDO).getDisplayValue()).trim();
-  const pagos = hojaOCrear_('Pagos', ['# Toma', 'Año', 'Fecha', 'Tipo', '#Recibo', 'Monto', 'Anotó', 'Nota']);
-  if (!pagos.getRange(1, 7).getDisplayValue()) pagos.getRange(1, 7, 1, 2).setValues([['Anotó', 'Nota']]);
-  pagos.appendRow([String(b.toma), anio, hoyTexto_(), conceptos.join(' + ') || 'Anualidad', recibo, monto, limpiaTexto_(b.registro, 60), limpiaTexto_(b.nota, 200)]);
+  const reciboAntes = reciboPrevioTxt;
+  const pagos = hojaOCrear_('Pagos', ['# Toma', 'Año', 'Fecha', 'Tipo', '#Recibo', 'Monto', 'Anotó', 'Nota', 'Recibo anterior']);
+  if (!pagos.getRange(1, 7).getDisplayValue()) pagos.getRange(1, 7, 1, 3).setValues([['Anotó', 'Nota', 'Recibo anterior']]);
+  if (!pagos.getRange(1, 9).getDisplayValue()) pagos.getRange(1, 9).setValue('Recibo anterior');
+  pagos.appendRow([String(b.toma), anio, hoyTexto_(), conceptos.join(' + ') || 'Anualidad', recibo, monto, limpiaTexto_(b.registro, 60), limpiaTexto_(b.nota, 200), reciboAntes]);
   bitacora_(b.registro, 'Cobro', b.toma, anio + ': ' + (conceptos.join(' + ') || 'Anualidad') + ' $' + monto + ' recibo ' + recibo +
     (previo ? ' (ya tenía $' + previo + ')' : '') + (notaVieja ? ' · nota que había: ' + notaVieja : ''));
   return { ok: true, toma: String(b.toma), nombre: nombre, anio: anio, monto: monto, total: total, recibo: recibo, fecha: hoyTexto_() };
@@ -376,4 +381,35 @@ function editarToma_(b) {
   });
   if (cambios.length) bitacora_(b.registro, 'Corrección', b.toma, cambios.join(' · '));
   return { ok: true, toma: String(b.toma), cambios: cambios.length };
+}
+
+// Deshacer un cobro hecho desde el sitio: resta el monto en la columna del año y repone el recibo que había.
+function deshacerCobro_(b) {
+  const sh = hojaPadron_();
+  const fila = filaDeToma_(sh, b.toma);
+  if (!fila) return { ok: false, error: 'no encontré la toma ' + b.toma };
+  const anio = Number(b.anio), monto = Number(b.monto), recibo = String(b.recibo || '').trim();
+  const cols = columnasAnio_(sh)[anio];
+  if (!cols) return { ok: false, error: 'no hay columnas para ' + anio };
+  const celdaMonto = sh.getRange(fila, cols.monto), celdaRecibo = sh.getRange(fila, cols.recibo);
+  if (String(celdaRecibo.getDisplayValue()).trim() !== recibo) return { ok: false, error: 'el recibo de esa toma ya no es el ' + recibo + ' (¿se corrigió a mano?)' };
+  const actual = Number(String(celdaMonto.getDisplayValue()).replace(/[$,]/g, '')) || 0;
+  const queda = Math.round((actual - monto) * 100) / 100;
+  // buscar el renglón de Pagos para saber qué recibo había antes
+  const pagos = libro_().getSheetByName('Pagos');
+  let reciboAntes = '', filaPago = 0;
+  if (pagos && pagos.getLastRow() > 1) {
+    const v = pagos.getRange(2, 1, pagos.getLastRow() - 1, 9).getDisplayValues();
+    for (let i = v.length - 1; i >= 0; i--) {
+      if (v[i][0] === String(b.toma) && Number(v[i][1]) === anio && v[i][4] === recibo && Number(v[i][5]) === monto && !/^DESHECHO/.test(v[i][7])) { filaPago = i + 2; reciboAntes = v[i][8]; break; }
+    }
+  }
+  if (!filaPago) return { ok: false, error: 'no encontré ese cobro en la hoja Pagos' };
+  if (queda > 0) { celdaMonto.setValue(queda); celdaRecibo.setValue(reciboAntes || recibo); }
+  else { celdaMonto.setValue(''); celdaRecibo.setValue(''); }
+  const nota = pagos.getRange(filaPago, 8);
+  nota.setValue('DESHECHO por ' + limpiaTexto_(b.registro, 60) + ' el ' + hoyTexto_() + (nota.getDisplayValue() ? ' · ' + nota.getDisplayValue() : ''));
+  bitacora_(b.registro, 'Cobro deshecho', b.toma, anio + ': se quitaron $' + monto + ' del recibo ' + recibo + (queda > 0 ? ' (quedan $' + queda + ')' : '') +
+    (/^anualidad$/i.test(String(sh.getRange(fila, COL_TIPO).getDisplayValue())) ? '' : ''));
+  return { ok: true, toma: String(b.toma), queda: queda };
 }

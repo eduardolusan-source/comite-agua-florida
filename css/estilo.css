@@ -389,3 +389,11 @@ main.informe { max-width: 980px; }
   .inf-tabla { font-size: .88rem; }
   .inf-tabla td, .inf-tabla th { padding: 7px 4px; }
 }
+
+.ayuda-busca { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: -4px 0 12px; }
+.ayuda-busca .boton { min-height: 40px; padding: 8px 14px; font-size: .9rem; }
+.ayuda-busca .chico { flex: 1 1 260px; }
+.fila-toma .det i { color: var(--rio); font-style: normal; }
+.confirmar { background: var(--aviso-suave); border: 2px solid var(--aviso); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; line-height: 1.6; }
+.aviso-recibo { background: var(--debe-suave); color: var(--debe); border-radius: 10px; padding: 8px 12px; font-size: .92rem; }
+.bitacora .mov .quitar { display: inline-block; margin-top: 4px; }
