@@ -32,6 +32,9 @@ Mientras no haya conteo: todas las cuotas del padrón + otros ingresos − gasto
   Cloudflare → Workers & Pages → Create → Import a repository.
 
 ## Años nuevos
+El padrón se mantiene: las tomas de 2026 son las mismas de 2027 y de los años que sigan (con su estado: activa, cortada,
+de la comunidad o baja). No se vuelve a registrar a nadie; cada año solo se cobra.
+
 Cada año son dos columnas en el padrón: `recibo` y el año. El script las crea solo (acción `preparar_anio`, o
 `prepararAnio2027()` en el editor) y también al cobrar un año que no existe. El sitio muestra el año del calendario;
 los adeudos se cuentan desde `ADEUDO_DESDE` (2026) en `js/config.js`.

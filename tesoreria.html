@@ -10,14 +10,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126d">
+<link rel="stylesheet" href="css/estilo.css?v=20261126e">
 </head>
 <body>
 <div class="ola-top">
   <div class="dentro">
     <span class="etiqueta">Tesorería</span>
     <h1 id="titulo">La caja del comité</h1>
-    <p id="sub">Aquí la tesorera anota lo que se gasta y lo que entra fuera de las anualidades. El sitio saca las cuentas solo.</p>
+    <p id="sub">Cobrar, anotar gastos y saber cuánto hay en la caja. El sitio saca las cuentas solo.</p>
   </div>
   <div id="olas"></div>
 </div>
@@ -62,10 +62,30 @@
       </div>
     </section>
 
-    <section>
+    <section id="menu">
+      <div class="grandes">
+        <button type="button" class="grande" data-ver="cobrar"><span>💵</span><b>Cobrar</b><small>Alguien viene a pagar su agua</small></button>
+        <button type="button" class="grande" data-ver="gasto"><span>🧾</span><b>Anotar un gasto</b><small>Se pagó algo con dinero de la caja</small></button>
+      </div>
+      <details class="tarjeta mas">
+        <summary>Más opciones</summary>
+        <div class="mas-lista">
+          <button type="button" data-ver="contar">💵 Contar la caja</button>
+          <button type="button" data-ver="ingreso">💰 Entró dinero aparte (multa, donativo…)</button>
+          <button type="button" data-ver="nueva">🚰 Dar de alta una toma nueva</button>
+          <button type="button" data-ver="toma">✏️ Corregir o dar de baja una toma</button>
+          <button type="button" data-ver="movs">📒 Ver gastos e ingresos anotados</button>
+          <button type="button" data-ver="cambios">🕘 Historial de cambios en el padrón</button>
+        </div>
+      </details>
+    </section>
+
+    <div class="volver" id="volver" hidden><button type="button" class="boton claro" data-ver="inicio">← Volver al inicio</button></div>
+
+    <section id="s-anotar" hidden>
       <div class="tarjeta" id="anotar">
-        <h2>¿Qué vas a anotar?</h2>
-        <div class="pestanas" role="group">
+        <h2 id="t-anotar">Anotar un gasto</h2>
+        <div class="pestanas" role="group" hidden>
           <button data-tipo="Egreso" aria-pressed="true">Un gasto</button>
           <button data-tipo="Ingreso" aria-pressed="false">Entró dinero</button>
         </div>
@@ -92,11 +112,11 @@
     </section>
 
 
-    <section id="padron">
+    <section id="padron" hidden>
       <div class="tarjeta">
-        <h2>Cobros y tomas</h2>
+        <h2 id="t-padron">Cobrar</h2>
         <p class="chico">Lo que se guarda aquí se escribe directo en el padrón (y queda en la pestaña «Cambios» con tu nombre).</p>
-        <div class="pestanas" role="group" id="p-tabs">
+        <div class="pestanas" role="group" id="p-tabs" hidden>
           <button data-p="cobrar" aria-pressed="true">💵 Cobrar</button>
           <button data-p="nueva" aria-pressed="false">➕ Toma nueva</button>
           <button data-p="toma" aria-pressed="false">✏️ Corregir o dar de baja</button>
@@ -196,9 +216,9 @@
       </div>
     </section>
 
-    <section>
+    <section id="s-movs" hidden>
       <div class="tarjeta">
-        <h2>Lo que se ha anotado</h2>
+        <h2>Gastos e ingresos anotados</h2>
         <div id="movs"></div>
       </div>
     </section>
@@ -206,9 +226,9 @@
   </div>
 </main>
 
-<script src="js/config.js?v=20261126d"></script>
-<script src="js/padron-copia.js?v=20261126d"></script>
-<script src="js/agua.js?v=20261126d"></script>
+<script src="js/config.js?v=20261126e"></script>
+<script src="js/padron-copia.js?v=20261126e"></script>
+<script src="js/agua.js?v=20261126e"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -267,6 +287,8 @@
     pintarAtajos();
     await refrescar(true);
     prepararNueva();
+    const h = location.hash.slice(1);
+    ver(['cobrar', 'gasto', 'ingreso', 'nueva', 'toma', 'cambios', 'movs', 'contar'].includes(h) ? h : 'inicio', true);
     irDesdeParams();
   }
 
@@ -291,10 +313,10 @@
       partes.push('Gastos después: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
       $('b-contar').textContent = '💵 Volver a contar la caja';
     } else {
-      k.porAnio.forEach((a) => partes.push('Cuotas ' + a.anio + ': ' + A.pesos(a.monto)));
+      partes.push('Cuotas cobradas: ' + A.pesos(k.cuotasAhora));
       if (k.otros) partes.push('Otros ingresos: ' + A.pesos(k.otros));
       partes.push('Gastos: ' + (k.egresos ? '−' : '') + A.pesos(k.egresos));
-      partes.push('<b style="flex-basis:100%;margin-top:6px;color:#fff">Todavía no nos dices cuánto dinero hay de verdad. Cuéntalo y escríbelo abajo: desde ahí sacamos las cuentas.</b>');
+      partes.push('<span class="nota-caja">Es lo cobrado, no lo contado. Cuenta el dinero y anótalo para que la cifra sea real.</span>');
       $('b-contar').textContent = '💵 Decir cuánto tengo en la caja';
     }
     $('desglose').innerHTML = partes.map((p) => '<span>' + p + '</span>').join('');
@@ -315,11 +337,8 @@
     }).join('') : '<p class="vacio">Todavía no hay nada anotado. Empieza diciendo cuánto tienes en la caja 👆</p>';
   }
 
-  $('b-contar').addEventListener('click', () => {
-    $('contar').hidden = false; $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = '';
-    $('contar').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('c-monto').focus({ preventScroll: true });
-  });
-  $('b-corte-no').addEventListener('click', () => { $('contar').hidden = true; });
+  $('b-contar').addEventListener('click', () => ver('contar'));
+  $('b-corte-no').addEventListener('click', () => ver('inicio'));
   $('f-corte').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const monto = parseFloat($('c-monto').value);
@@ -332,9 +351,8 @@
       const cuotas = A.cuentasDeCaja(fresco.padron, fresco.caja).cuotasAhora;
       const r = await A.enviar({ accion: 'corte', clave, monto, cuotas, nota: $('c-nota').value.trim(), registro: $('registro').value.trim() });
       if (!r.ok) throw new Error(r.error === 'clave' ? 'La clave cambió. Vuelve a entrar.' : r.error);
-      $('contar').hidden = true;
       await refrescar(true);
-      $('caja').scrollIntoView({ behavior: 'smooth' });
+      ver('inicio');
     } catch (err) { $('e-corte').textContent = 'No se guardó: ' + (err.message || 'sin conexión') + '.'; }
     $('b-corte').disabled = false; $('b-corte').textContent = 'Guardar lo que tengo';
   });
@@ -409,7 +427,7 @@
       document.querySelectorAll('.atajo').forEach((x) => x.setAttribute('aria-pressed', false));
       $('listo').hidden = false;
       $('listo').innerHTML = '<div class="gota-ok">' + A.GOTA + '</div><h3>Quedó anotado</h3><p>' + A.esc(cuerpo.concepto) + ' · <b>' + A.pesos(monto) + '</b><br><span class="chico">Folio ' + A.esc(r.folio) + '</span></p>' +
-        '<button class="boton claro" type="button" id="otro">Anotar otro</button>';
+        '<div class="ft-botones" style="justify-content:center"><button class="boton claro" type="button" id="otro">Anotar otro</button><button class="boton" type="button" data-ver="inicio">Listo</button></div>';
       $('otro').onclick = () => { $('listo').hidden = true; $('anotar').scrollIntoView({ behavior: 'smooth' }); };
       await refrescar(true);
     } catch (err) {
@@ -669,10 +687,35 @@
   function irDesdeParams() {
     const acc = PARAMS.get('accion'), n = PARAMS.get('toma');
     if (!acc) return;
-    abrirPanel(acc === 'toma' ? 'toma' : acc === 'nueva' ? 'nueva' : 'cobrar');
+    ver(acc === 'toma' ? 'toma' : acc === 'nueva' ? 'nueva' : 'cobrar');
     if (n) (acc === 'toma' ? elegirToma : elegirCobro)(n);
-    $('padron').scrollIntoView({ behavior: 'smooth' });
   }
+
+  // =================== Una pantalla a la vez ===================
+  const TIT_PADRON = { cobrar: 'Cobrar', nueva: 'Toma nueva', toma: 'Corregir o dar de baja', cambios: 'Historial de cambios' };
+  function ver(v, sinHistoria) {
+    const inicio = v === 'inicio';
+    $('caja').hidden = !(inicio || v === 'contar');
+    $('b-contar').hidden = !inicio;
+    $('menu').hidden = !inicio;
+    $('volver').hidden = inicio;
+    $('s-anotar').hidden = !(v === 'gasto' || v === 'ingreso');
+    $('padron').hidden = !TIT_PADRON[v];
+    $('s-movs').hidden = v !== 'movs';
+    $('contar').hidden = v !== 'contar';
+    if (v === 'gasto' || v === 'ingreso') {
+      tipo = v === 'gasto' ? 'Egreso' : 'Ingreso';
+      document.querySelectorAll('#anotar .pestanas button').forEach((x) => x.setAttribute('aria-pressed', x.dataset.tipo === tipo));
+      $('t-anotar').textContent = v === 'gasto' ? 'Anotar un gasto' : 'Entró dinero aparte';
+      pintarAtajos();
+    }
+    if (TIT_PADRON[v]) { $('t-padron').textContent = TIT_PADRON[v]; abrirPanel(v); }
+    if (v === 'contar') { $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = ''; setTimeout(() => $('c-monto').focus(), 50); }
+    if (!sinHistoria) history.pushState({ v }, '', inicio ? location.pathname : '#' + v);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-ver]'); if (b) { e.preventDefault(); const d = b.closest('details'); if (d) d.open = false; ver(b.dataset.ver); } });
+  window.addEventListener('popstate', () => { if (!$('adentro').hidden) ver((location.hash || '#inicio').slice(1), true); });
 
   // Si ya había entrado en esta sesión, pasa directo
   if (clave && C.SCRIPT_URL) {
