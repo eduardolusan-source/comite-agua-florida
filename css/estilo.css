@@ -442,3 +442,5 @@ details.mas[open] summary::before { content: '－ '; }
 .buscar { scroll-margin-top: 80px; }
 #adentro input, #adentro textarea, #adentro select { scroll-margin-top: 90px; scroll-margin-bottom: 120px; }
 @media (max-width: 700px) { .resultados { max-height: 46vh; } }
+.aviso-fuente.buscando i { background: var(--turquesa); animation: latido 1s ease-in-out infinite; }
+@keyframes latido { 50% { opacity: .25; transform: scale(.7); } }

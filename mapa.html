@@ -8,9 +8,9 @@
 <link rel="icon" href="assets/gota.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/estilo.css?v=20261126f">
+<link rel="stylesheet" href="css/estilo.css?v=20261126g">
 </head>
 <body>
 <div class="ola-top">
@@ -59,9 +59,9 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="js/config.js?v=20261126f"></script>
-<script src="js/padron-copia.js?v=20261126f"></script>
-<script src="js/agua.js?v=20261126f"></script>
+<script src="js/config.js?v=20261126g"></script>
+<script src="js/padron-copia.js?v=20261126g"></script>
+<script src="js/agua.js?v=20261126g"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -85,7 +85,12 @@
 
   // filtros: por omisión todo menos las bajas
   const activos = new Set(params.get('ver') ? params.get('ver').split(',') : ['debe', 'aclarar', 'pagada', 'cortada', 'exenta']);
-  let datos = await A.cargar();
+  let datos = await A.cargar({ alLlegar: (nuevo, cambio) => {
+    $('fuente').innerHTML = A.avisoFuente(nuevo);
+    if (!cambio) return;
+    datos = nuevo; P = A.interpretar(datos.filas, null, $('anio').value || undefined);
+    pintar(false, true); if (elegida) ficha(elegida, true);
+  } });
   let P = datos.padron;
   let elegida = null;
 
@@ -130,7 +135,7 @@
       (!q || t.toma === q || A.sinAcentos(t.nombre).includes(q)));
   }
 
-  function pintar(encuadrar) {
+  function pintar(encuadrar, quieto) {
     $('et-anio').textContent = 'Tomas · ' + P.actual;
     // chips con conteo
     const bar = $('barrio').value;
@@ -153,7 +158,8 @@
       m.on('click', () => ficha(t.toma));
       marcas[t.toma] = m;
     });
-    if (encuadrar || ($('q').value.trim() && lista.length > 1)) {
+    if (quieto) { /* llegó lo nuevo de la hoja: no mover el mapa */ }
+    else if (encuadrar || ($('q').value.trim() && lista.length > 1)) {
       const pts = lista.filter((t) => isFinite(t.lat)).map((t) => [t.lat, t.lng]);
       if (pts.length) mapa.fitBounds(pts, { padding: [30, 30], maxZoom: 18 });
     } else if (lista.length === 1 && isFinite(lista[0].lat)) {
@@ -186,7 +192,7 @@
     if (elegida && marcas[elegida]) marcas[elegida].bringToFront();
   }
 
-  function ficha(toma) {
+  function ficha(toma, quieto) {
     elegida = toma;
     const t = P.tomas.find((x) => x.toma === toma);
     if (!t) return;
@@ -217,7 +223,7 @@
       if (o && isFinite(o.lat)) mapa.setView([o.lat, o.lng], 19); ficha(a.dataset.ir);
     });
     resaltar();
-    if (window.innerWidth < 900) $('ficha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!quieto && window.innerWidth < 900) $('ficha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   $('fuente').innerHTML = A.avisoFuente(datos);

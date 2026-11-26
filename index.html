@@ -8,8 +8,8 @@
 <link rel="icon" href="assets/gota.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126f">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/estilo.css?v=20261126g">
 </head>
 <body>
 <div class="ola-top">
@@ -112,19 +112,30 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261126f"></script>
-<script src="js/padron-copia.js?v=20261126f"></script>
-<script src="js/agua.js?v=20261126f"></script>
+<script src="js/config.js?v=20261126g"></script>
+<script src="js/padron-copia.js?v=20261126g"></script>
+<script src="js/agua.js?v=20261126g"></script>
 <script>
 (async function () {
   const A = window.AGUA;
   A.pintarMarco('index.html');
   document.getElementById('olas').outerHTML = A.OLAS;
   const pedido = new URLSearchParams(location.search).get('anio');
-  const datos = await A.cargar({ anio: pedido });
+  const $ = (id) => document.getElementById(id);
+  let porToma = {};
+  const datos0 = await A.cargar({ anio: pedido, alLlegar: (nuevo, cambio) => cambio ? pintar(nuevo) : aviso(nuevo) });
+  pintar(datos0);
+
+  function aviso(datos) {
+    const P = datos.padron, T = P.tot;
+    $('fuente').innerHTML = A.avisoFuente(datos) +
+      '<p class="chico" style="margin-top:6px">No cuentan para el porcentaje las tomas cortadas, las de la comunidad (' + T.exenta + ') ni las que están por aclarar.' +
+      (P.vencio ? ' Las que no pagaron llevan ya el recargo de $100.' : '') + '</p>';
+  }
+
+  function pintar(datos) {
   const P = datos.padron, T = P.tot;
   document.getElementById('anios').innerHTML = P.anios.filter((a) => a.anio >= (window.AGUA_CONFIG.ADEUDO_DESDE || 0)).map((a) => '<a class="chip" aria-pressed="' + (a.anio === P.actual) + '" href="?anio=' + a.anio + '">' + a.anio + '</a>').join('');
-  const $ = (id) => document.getElementById(id);
 
   $('et-anio').textContent = 'Anualidad ' + P.actual;
   $('pct').textContent = T.pct + '%';
@@ -135,13 +146,11 @@
   $('c-cobrado-l').textContent = 'cobrado en ' + P.actual;
   $('c-falta').textContent = A.pesos(T.porCobrar);
   $('c-tomas').textContent = P.tomas.length;
-  $('fuente').innerHTML = A.avisoFuente(datos) +
-    '<p class="chico" style="margin-top:6px">No cuentan para el porcentaje las tomas cortadas, las de la comunidad (' + T.exenta + ') ni las que están por aclarar.' +
-    (P.vencio ? ' Las que no pagaron llevan ya el recargo de $100.' : '') + '</p>';
+  aviso(datos);
 
   const caja = A.cuentasDeCaja(P, datos.caja);
-  $('d-caja').textContent = A.pesos(caja.saldo);
-  $('d-caja-l').textContent = caja.corte ? 'en caja' : 'cobrado en cuotas (falta que la tesorera cuente la caja)';
+  $('d-caja').textContent = datos.caja ? A.pesos(caja.saldo) : '…';
+  $('d-caja-l').textContent = !datos.caja ? 'trayendo la caja de la hoja' : caja.corte ? 'en caja' : 'cobrado en cuotas (falta que la tesorera cuente la caja)';
   $('d-debe').textContent = T.conAdeudo;
   $('d-debe-l').textContent = (T.conAdeudo === 1 ? 'toma con adeudo' : 'tomas con adeudo') + ' · ' + P.deudores.length + ' personas';
   $('d-pend').textContent = T.aclarar + T.parcial + P.sueltos.length;
@@ -177,10 +186,12 @@
     svg += '<text class="rot" x="' + px(cx).toFixed(0) + '" y="' + (py(cy) - 14).toFixed(0) + '" text-anchor="middle">' + A.esc(b.nombre) + '</text>';
   });
   svg += '</svg>';
-  const caja2 = $('mapa');
-  caja2.insertAdjacentHTML('afterbegin', svg);
-  const globo = $('globo');
-  const porToma = Object.fromEntries(P.tomas.map((t) => [t.toma, t]));
+  const viejo = $('mapa').querySelector('svg'); if (viejo) viejo.remove();
+  $('mapa').insertAdjacentHTML('afterbegin', svg);
+  porToma = Object.fromEntries(P.tomas.map((t) => [t.toma, t]));
+  }
+
+  const caja2 = $('mapa'), globo = $('globo');
   const textoEstado = { pagada: 'pagada', parcial: 'pagó una parte', debe: 'sin pagar', aclarar: 'por aclarar', cortada: 'cortada', exenta: 'de la comunidad', baja: 'dada de baja' };
   const mostrar = (ev) => {
     const c = ev.target.closest('.punto');

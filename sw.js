@@ -1,6 +1,6 @@
 // Guarda las páginas en el teléfono para que la tesorería abra aunque no haya internet.
 // Siempre intenta primero la red (para tener lo más nuevo) y si no hay, usa lo guardado.
-const CACHE = 'agua-florida-v1';
+const CACHE = 'agua-florida-v2';
 const BASE = ['./', 'index.html', 'tesoreria.html', 'mapa.html', 'adeudos.html', 'pendientes.html', 'reglamento.html', 'informe.html',
   'css/estilo.css', 'js/config.js', 'js/agua.js', 'js/padron-copia.js', 'assets/gota.svg'];
 
@@ -24,19 +24,31 @@ function claves(url) {
   return [u.pathname.endsWith('/') ? 'index.html' : base, p];
 }
 
+// Para que abra rápido aunque la señal sea mala:
+// · css y js llevan versión (?v=…): si ya están guardados se usan directo; si cambia la versión se bajan.
+// · las páginas se muestran de inmediato desde lo guardado y por detrás se trae la nueva para la próxima vez.
 self.addEventListener('fetch', (e) => {
-  const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const req = e.request, url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
-    try {
-      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 6000);
-      const r = await fetch(req, { signal: ctl.signal }); clearTimeout(t);
-      if (r.ok) { const [k] = claves(req.url); guardar(c, k, r.clone()); }
-      return r;
-    } catch (err) {
+    const deRespaldo = async () => {
       for (const k of claves(req.url)) { const hit = await c.match(k, { ignoreSearch: true }); if (hit) return hit; }
       return new Response('Sin internet y esta página no está guardada en el teléfono.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    };
+    const traer = async (ms, clave) => {
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+      try { const r = await fetch(req, { signal: ctl.signal }); if (r.ok) await guardar(c, clave, r.clone()); return r; } finally { clearTimeout(t); }
+    };
+    if (url.searchParams.has('v')) {
+      const hit = await c.match(req.url);
+      if (hit) return hit;
+      try { return await traer(15000, req.url); } catch (err) { return deRespaldo(); }
     }
+    const [k] = claves(req.url);
+    const hit = await c.match(k, { ignoreSearch: true });
+    const nueva = traer(10000, k);
+    if (hit) { e.waitUntil(nueva.catch(() => {})); return hit; }
+    try { return await nueva; } catch (err) { return deRespaldo(); }
   })());
 });

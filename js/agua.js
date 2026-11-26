@@ -342,24 +342,42 @@
     return Object.assign({}, d, { padron: filas, caja });
   }
 
+  // Carga rápida: si la página da «alLlegar», se pinta al instante con lo último guardado en el teléfono
+  // (o la copia del padrón) y la hoja en vivo se pide por detrás; al llegar se llama alLlegar(nuevo, cambio).
+  // Con «necesitaCaja», la primera vez (sin nada guardado) sí se espera a la hoja, porque la copia no trae la caja.
+  function armar(d, fuente, extra) {
+    if (leer(COLA, []).length) d = aplicarCola(d);
+    return Object.assign({ fuente, fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, armar.anio), filas: d.padron,
+      caja: d.caja || null, cambios: d.cambios || [], pagos: d.pagos || null, porEnviar: leer(COLA, []).length }, extra || {});
+  }
+  const huella = (d) => { try { return JSON.stringify([d.padron, d.caja, d.pagos, d.cambios]); } catch (e) { return Math.random() + ''; } };
+  const deLaCopia = () => { const c = window.PADRON_COPIA; return { padron: c.filas, hora: c.fecha + 'T12:00:00', caja: null, cambios: [], pagos: null }; };
+  async function vivo(fresco) {
+    const v = await pedir({ accion: 'datos', fresco: fresco ? '1' : '' }, 20000);
+    if (v && v.ok && v.padron && v.padron.length > 1) { escribir(DATOS, v); return v; }
+    return null;
+  }
+
   async function cargar(opc) {
     opc = opc || {};
+    armar.anio = opc.anio;
+    const g = C.SCRIPT_URL ? leer(DATOS, null) : null;
+    const hayGuardado = !!(g && g.padron);
+    if (C.SCRIPT_URL && typeof opc.alLlegar === 'function' && (hayGuardado || !opc.necesitaCaja)) {
+      const base = hayGuardado ? g : deLaCopia(), antes = huella(base), fuente = hayGuardado ? 'guardado' : 'copia';
+      vivo(opc.fresco).then((v) => {
+        armar.anio = opc.anio;
+        if (v) opc.alLlegar(armar(v, 'vivo'), huella(v) !== antes);
+        else opc.alLlegar(armar(base, fuente), false);
+      }).catch((e) => { console.warn('El padrón en vivo no respondió.', e); armar.anio = opc.anio; opc.alLlegar(armar(base, fuente), false); });
+      return armar(base, fuente, { actualizando: true });
+    }
     let d = null, fuente = 'copia';
     if (C.SCRIPT_URL) {
-      try {
-        const v = await pedir({ accion: 'datos', fresco: opc.fresco ? '1' : '' }, 20000);
-        if (v && v.ok && v.padron && v.padron.length > 1) { d = v; fuente = 'vivo'; escribir(DATOS, v); }
-      } catch (e) { console.warn('El padrón en vivo no respondió.', e); }
-      if (!d) { const g = leer(DATOS, null); if (g && g.padron) { d = g; fuente = 'guardado'; } }
+      try { d = await vivo(opc.fresco); if (d) fuente = 'vivo'; } catch (e) { console.warn('El padrón en vivo no respondió.', e); }
+      if (!d && hayGuardado) { d = g; fuente = 'guardado'; }
     }
-    if (!d) {
-      const copia = window.PADRON_COPIA;
-      d = { padron: copia.filas, hora: copia.fecha + 'T12:00:00', caja: null, cambios: [], pagos: null };
-    }
-    const hayCola = leer(COLA, []).length > 0;
-    if (hayCola) d = aplicarCola(d);
-    return { fuente, fecha: d.hora ? new Date(d.hora) : new Date(), padron: interpretar(d.padron, null, opc.anio), filas: d.padron,
-      caja: d.caja || null, cambios: d.cambios || [], pagos: d.pagos || null, porEnviar: leer(COLA, []).length };
+    return armar(d || deLaCopia(), fuente);
   }
 
   // Cuentas de la caja.
@@ -421,6 +439,7 @@
     '<path d="M0 52c160-26 320-26 480 0s320 26 480 0 320-26 480 0v28H0z" fill="#f7f4ec"/></svg>';
 
   function avisoFuente(datos) {
+    if (datos.actualizando) return '<p class="aviso-fuente buscando"><i></i>Trayendo lo más nuevo de la hoja… (mientras, lo del ' + fechaLarga(datos.fecha) + ')</p>';
     if (datos.fuente === 'vivo') return '<p class="aviso-fuente vivo"><i></i>Datos en vivo del padrón · ' + fechaLarga(datos.fecha) + '</p>';
     if (datos.fuente === 'guardado') return '<p class="aviso-fuente"><i></i>Sin internet: datos guardados en este teléfono el ' + fechaLarga(datos.fecha) + '</p>';
     return '<p class="aviso-fuente"><i></i>Copia del padrón del ' + fechaLarga(datos.fecha) + (C.SCRIPT_URL ? ' (la hoja en vivo no respondió)' : '') + '</p>';

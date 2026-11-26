@@ -8,8 +8,8 @@
 <link rel="icon" href="assets/gota.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/estilo.css?v=20261126f">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/estilo.css?v=20261126g">
 </head>
 <body>
 <div class="ola-top">
@@ -39,25 +39,31 @@
   </section>
 </main>
 
-<script src="js/config.js?v=20261126f"></script>
-<script src="js/padron-copia.js?v=20261126f"></script>
-<script src="js/agua.js?v=20261126f"></script>
+<script src="js/config.js?v=20261126g"></script>
+<script src="js/padron-copia.js?v=20261126g"></script>
+<script src="js/agua.js?v=20261126g"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
   A.pintarMarco('adeudos.html');
   document.getElementById('olas').outerHTML = A.OLAS;
-  const datos = await A.cargar({ anio: new URLSearchParams(location.search).get('anio') });
-  const P = datos.padron;
   const $ = (id) => document.getElementById(id);
+  const datos = await A.cargar({ anio: new URLSearchParams(location.search).get('anio'), alLlegar: (nuevo, cambio) => {
+    if (cambio) { P = nuevo.padron; encabezado(nuevo); barrios = listaBarrios(); pintarFiltros(); pintar(); } else $('fuente').innerHTML = A.avisoFuente(nuevo);
+  } });
+  let P = datos.padron;
+  function encabezado(datos) {
   $('et-anio').textContent = 'Adeudos ' + P.actual;
   $('intro').textContent = 'Tomas del padrón con anualidades sin recibo' + (P.desde < P.actual ? ' de ' + P.desde + ' a ' + P.actual : ' de ' + P.actual) + '. ' +
     'Cada año son $' + C.CUOTA + (P.vencio ? ', más $' + C.RECARGO + ' de recargo cuando ya pasó el 31 de marzo.' : '; el recargo de $' + C.RECARGO + ' empieza después del 31 de marzo.');
   $('fuente').innerHTML = A.avisoFuente(datos);
+  }
+  encabezado(datos);
 
   const params = new URLSearchParams(location.search);
   let barrio = params.get('barrio') || '';
-  const barrios = [...new Set(P.deudores.flatMap((d) => d.barrios))].sort((a, b) => a.localeCompare(b, 'es'));
+  const listaBarrios = () => [...new Set(P.deudores.flatMap((d) => d.barrios))].sort((a, b) => a.localeCompare(b, 'es'));
+  let barrios = listaBarrios();
   const f = $('filtros');
   const pintarFiltros = () => {
     f.innerHTML = ['', ...barrios].map((b) => '<button class="chip" data-b="' + A.esc(b) + '" aria-pressed="' + (b === barrio) + '">' + (b ? A.esc(b) : 'Todos los barrios') + '</button>').join('');
