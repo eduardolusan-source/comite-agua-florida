@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="css/estilo.css?v=20261126g">
+<link rel="stylesheet" href="css/estilo.css?v=20261126h">
 </head>
-<body>
+<body class="teso">
 <div class="ola-top">
   <div class="dentro">
     <span class="etiqueta">Tesorería</span>
@@ -65,8 +65,8 @@
 
     <section id="menu">
       <div class="grandes">
-        <button type="button" class="grande" data-ver="cobrar"><span>💵</span><b>Cobrar</b><small>Alguien viene a pagar su agua</small></button>
-        <button type="button" class="grande" data-ver="gasto"><span>🧾</span><b>Anotar un gasto</b><small>Se pagó algo con dinero de la caja</small></button>
+        <button type="button" class="grande" data-ver="cobrar"><span>💵</span><div><b>Cobrar</b><small>Alguien viene a pagar su agua</small></div></button>
+        <button type="button" class="grande" data-ver="gasto"><span>🧾</span><div><b>Anotar un gasto</b><small>Se pagó algo con dinero de la caja</small></div></button>
       </div>
       <details class="tarjeta mas">
         <summary>Más opciones</summary>
@@ -116,7 +116,7 @@
     <section id="padron" hidden>
       <div class="tarjeta">
         <h2 id="t-padron">Cobrar</h2>
-        <p class="chico">Lo que se guarda aquí se escribe directo en el padrón (y queda en la pestaña «Cambios» con tu nombre).</p>
+        <p class="chico solo-ancho">Lo que se guarda aquí se escribe directo en el padrón (y queda en la pestaña «Cambios» con tu nombre).</p>
         <div class="pestanas" role="group" id="p-tabs" hidden>
           <button data-p="cobrar" aria-pressed="true">💵 Cobrar</button>
           <button data-p="nueva" aria-pressed="false">➕ Toma nueva</button>
@@ -125,10 +125,10 @@
         </div>
 
         <div id="p-cobrar" class="p-panel">
-          <input class="buscar" id="c-q" type="search" placeholder="Nombre, apellido, barrio, número de toma o de un recibo anterior" autocomplete="off">
-          <div class="ayuda-busca"><button class="boton claro" type="button" data-cerca="c">📍 Tomas cerca de mí</button>
-            <a class="boton claro" href="mapa.html">🗺 Buscarla en el mapa</a>
-            <span class="chico">¿Está a nombre de otra persona? Prueba con el apellido y el barrio («Saenz Presa»), o con el número de un recibo de años pasados: salen todas las tomas que se pagaron juntas.</span></div>
+          <input class="buscar" id="c-q" type="search" placeholder="Nombre, barrio, toma o recibo" autocomplete="off">
+          <div class="ayuda-busca"><button class="boton claro" type="button" data-cerca="c">📍 Cerca de mí</button>
+            <a class="boton claro" href="mapa.html">🗺 En el mapa</a>
+            <details class="pista"><summary>¿No aparece?</summary><p>Puede estar a nombre de otra persona de la familia. Prueba con el apellido y el barrio («Saenz Presa») o con el número de un recibo de otro año: salen todas las tomas que se pagaron juntas.</p></details></div>
           <div class="resultados" id="c-res" hidden></div>
           <form id="f-cobrar" hidden>
             <div class="cuenta-cab" id="c-cab"></div>
@@ -181,7 +181,7 @@
         </div>
 
         <div id="p-toma" class="p-panel" hidden>
-          <input class="buscar" id="t-q" type="search" placeholder="Nombre, apellido, barrio, número de toma o de recibo" autocomplete="off">
+          <input class="buscar" id="t-q" type="search" placeholder="Nombre, barrio, toma o recibo" autocomplete="off">
           <div class="ayuda-busca"><button class="boton claro" type="button" data-cerca="t">📍 Tomas cerca de mí</button></div>
           <div class="resultados" id="t-res" hidden></div>
           <div id="t-edit" hidden>
@@ -228,9 +228,9 @@
   </div>
 </main>
 
-<script src="js/config.js?v=20261126g"></script>
-<script src="js/padron-copia.js?v=20261126g"></script>
-<script src="js/agua.js?v=20261126g"></script>
+<script src="js/config.js?v=20261126h"></script>
+<script src="js/padron-copia.js?v=20261126h"></script>
+<script src="js/agua.js?v=20261126h"></script>
 <script>
 (async function () {
   const A = window.AGUA, C = window.AGUA_CONFIG;
@@ -411,7 +411,7 @@
       $('concepto').value = '1 jornal';
     }
     (atajo.otro ? $('concepto') : $('monto')).focus({ preventScroll: true });
-    $('f-mov').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('f-mov').scrollIntoView({ block: 'start' });
   });
   $('n-jornales').addEventListener('click', (e) => {
     const c = e.target.closest('.chip'); if (!c) return;
@@ -513,7 +513,7 @@
     $('c-q').value = t.nombre;
     $('c-recibo').value = reciboSiguiente(); $('c-nota2').value = '';
     pintarCuenta();
-    $('f-cobrar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('f-cobrar').scrollIntoView({ block: 'start' });
   }
   function agregarToma(n) { if (!cTomas.includes(String(n))) cTomas.push(String(n)); pintarCuenta(); }
   function quitarToma(n) { cTomas = cTomas.filter((x) => x !== String(n)); if (!cTomas.length) cancelarCobro(); else pintarCuenta(); }
@@ -538,9 +538,9 @@
     let html = '', clave = 0;
     tomas.forEach((t) => {
       const items = itemsDe(t);
-      html += '<div class="cuenta-toma"><div class="cuenta-toma-cab"><b>Toma ' + t.toma + '</b> · ' + A.esc(t.barrio) + ' · agua ' + A.esc(t.fuente).toLowerCase() +
+      html += '<div class="cuenta-toma"><div class="cuenta-toma-cab"><span><b>Toma ' + t.toma + '</b> · ' + A.esc(t.barrio) + ' · agua ' + A.esc(t.fuente).toLowerCase() +
         (A.sinAcentos(t.nombre) !== A.sinAcentos(quien.nombre) ? ' · <i>a nombre de ' + A.esc(t.nombre) + '</i>' : '') +
-        ' <button type="button" class="quitar" data-quitar="' + t.toma + '">quitar</button></div>';
+        '</span><button type="button" class="quitar" data-quitar="' + t.toma + '">quitar</button></div>';
       if (t.estado === 'aclarar') html += '<p class="chico" style="margin:2px 0 6px">⚠ Por aclarar: ' + A.esc(t.notas.join(' · ')) + '</p>';
       if (t.estado === 'cortada') html += '<p class="chico" style="margin:2px 0 6px">✂ Está cortada: solo se cobra si se va a reconectar (marca la reconexión).' + (t.notas.length ? ' Nota: ' + A.esc(t.notas.join(' · ')) : '') + '</p>';
       if (!items.length) html += '<p class="chico al-corriente">✓ Al corriente' + (cAdelantar ? '' : ' (puede adelantar el año siguiente)') + '</p>';
@@ -603,7 +603,7 @@
     });
     return Object.values(grupos);
   }
-  function cancelarCobro() { $('f-cobrar').hidden = true; cTomas = []; $('c-q').value = ''; $('c-q').focus(); }
+  function cancelarCobro() { $('f-cobrar').hidden = true; cTomas = []; $('c-q').value = ''; enfocar($('c-q')); }
   $('b-cancelar-cobro').onclick = cancelarCobro;
 
   function reciboHTML(r, conceptos) {
@@ -663,7 +663,7 @@
     $('c-aviso').innerHTML = '✓ ' + A.esc(nombre) + ' · ' + A.pesos(total) + ' · recibo ' + A.esc(recibo) + ' — <b>siguiente persona</b> 👇';
     $('c-q').value = ''; pintarHoy();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => $('c-q').focus(), 300);
+    setTimeout(() => enfocar($('c-q')), 300);
   });
 
   function marcarHoy(id, estado, error) {
@@ -827,17 +827,10 @@
   }
 
   // =================== Teclado del celular ===================
-  // Al abrirse, el teclado tapa la mitad de abajo: el campo tocado se sube; los buscadores van arriba para que se vean los resultados.
-  document.addEventListener('focusin', (e) => {
-    const el = e.target;
-    if (!el.matches || !el.matches('#adentro input, #adentro textarea, #adentro select')) return;
-    if (el.type === 'checkbox' || el.type === 'radio') return;
-    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: el.classList.contains('buscar') ? 'start' : 'center' }), 350);
-  });
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
-    const el = document.activeElement;
-    if (el && el.matches && el.matches('#adentro input, #adentro textarea') && el.type !== 'checkbox') el.scrollIntoView({ block: el.classList.contains('buscar') ? 'start' : 'center' });
-  });
+  // El navegador ya sube solo el campo que se toca. Aquí solo se evita abrir el teclado sin que ella lo pida:
+  // en el celular nada se enfoca solo; en computadora sí, para escribir directo.
+  const conRaton = window.matchMedia && matchMedia('(pointer: fine)').matches;
+  const enfocar = (el) => { if (conRaton && el) el.focus({ preventScroll: true }); };
 
   // =================== Una pantalla a la vez ===================
   const TIT_PADRON = { cobrar: 'Cobrar', nueva: 'Toma nueva', toma: 'Corregir o dar de baja', cambios: 'Historial de cambios' };
@@ -858,10 +851,11 @@
       pintarAtajos();
     }
     if (TIT_PADRON[v]) { $('t-padron').textContent = TIT_PADRON[v]; abrirPanel(v); }
-    if (v === 'cobrar') { pintarHoy(); $('c-aviso').hidden = true; setTimeout(() => { if ($('f-cobrar').hidden) $('c-q').focus(); }, 350); }
-    if (v === 'contar') { $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = ''; setTimeout(() => $('c-monto').focus(), 50); }
+    if (v === 'cobrar') { pintarHoy(); $('c-aviso').hidden = true; setTimeout(() => { if ($('f-cobrar').hidden) enfocar($('c-q')); }, 350); }
+    if (v === 'contar') { $('e-corte').textContent = ''; $('c-monto').value = ''; $('c-nota').value = ''; setTimeout(() => enfocar($('c-monto')), 50); }
     if (!sinHistoria) history.pushState({ v }, '', inicio ? location.pathname : '#' + v);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo(0, 0);
+    document.body.classList.toggle('teso-dentro', !inicio);
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-ver]'); if (b) { e.preventDefault(); const d = b.closest('details'); if (d) d.open = false; ver(b.dataset.ver); } });
   window.addEventListener('popstate', () => { if (!$('adentro').hidden) ver((location.hash || '#inicio').slice(1), true); });

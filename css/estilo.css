@@ -444,3 +444,74 @@ details.mas[open] summary::before { content: '－ '; }
 @media (max-width: 700px) { .resultados { max-height: 46vh; } }
 .aviso-fuente.buscando i { background: var(--turquesa); animation: latido 1s ease-in-out infinite; }
 @keyframes latido { 50% { opacity: .25; transform: scale(.7); } }
+
+/* ---------- Tesorería más compacta (pensada para el celular) ----------
+   Escala de letra: 16px de cuerpo (mínimo cómodo y evita el zoom de iPhone en campos),
+   títulos de 1.25rem, cifras clave de 1.5–2.4rem; áreas de toque de al menos 44px. */
+[hidden] { display: none !important; }
+body.teso { font-size: 16px; line-height: 1.5; }
+.teso .ola-top .dentro { padding: 22px 16px 70px; }
+.teso .ola-top h1 { font-size: clamp(1.6rem, 5vw, 2.4rem); }
+.teso .ola-top p { font-size: .95rem; margin: 0; }
+.teso .etiqueta { margin-bottom: 8px; }
+/* Ya adentro de una pantalla: el encabezado se vuelve una franja delgada */
+.teso.teso-dentro .ola-top .dentro { padding: 10px 16px 44px; }
+.teso.teso-dentro .ola-top h1, .teso.teso-dentro .ola-top p { display: none; }
+.teso.teso-dentro .ola-top .etiqueta { margin: 0; }
+.teso.teso-dentro .sube, .teso.teso-dentro #padron, .teso.teso-dentro #s-anotar, .teso.teso-dentro #s-movs { margin-top: 0; }
+.teso.teso-dentro .ola-top .olas { height: 40px; }
+.teso .volver { margin: -36px 0 12px; }
+.teso .volver .boton { min-height: 44px; padding: 8px 16px; font-size: .95rem; }
+.teso #cola { position: relative; z-index: 3; }
+.teso section { margin-bottom: 24px; }
+.teso .tarjeta { padding: 18px; }
+.teso .tarjeta h2 { font-size: 1.3rem; margin-bottom: .3em; }
+.teso h3 { font-size: 1.05rem; }
+.teso .chico { font-size: .875rem; }
+.teso .boton { font-size: 1rem; padding: 11px 18px; min-height: 48px; }
+.teso .campo { margin-bottom: 12px; }
+.teso .campo span { font-size: .875rem; }
+.teso .campo input, .teso .campo select, .teso .campo textarea { font-size: 16px; padding: 11px 12px; }
+.teso .campo.monto input { font-size: 1.5rem; padding: 8px 12px; }
+.teso .buscar { font-size: 16px; padding: 12px 14px 12px 44px; margin-bottom: 10px; }
+.teso .caja-grande small { font-size: .78rem; }
+.teso .caja-grande b { font-size: clamp(2.2rem, 9vw, 3rem); margin: 4px 0 8px; }
+.teso .caja-grande .desglose, .teso .nota-caja { font-size: .85rem; }
+/* Los dos botones grandes: en fila, ícono a la izquierda, sin ocupar media pantalla */
+.teso .grandes { gap: 10px; margin-bottom: 10px; }
+.teso .grande { flex-direction: row; justify-content: flex-start; text-align: left; gap: 14px; min-height: 84px; padding: 14px 18px; border-radius: 18px; }
+.teso .grande span { font-size: 2rem; }
+.teso .grande b { font-size: 1.25rem; display: block; }
+.teso .grande small { font-size: .85rem; display: block; }
+.teso .grande > div { display: flex; flex-direction: column; }
+.teso details.mas summary { min-height: 44px; display: flex; align-items: center; }
+.teso .mas-lista button { min-height: 48px; font-size: .95rem; }
+/* Búsqueda: la lista de resultados sigue la página (sin una segunda barra de desplazamiento) */
+.teso .resultados { max-height: none; overflow: visible; }
+.teso .resultados .ficha { padding: 10px 12px; min-height: 52px; }
+.teso .ficha .monto { font-size: 1.1rem; }
+.teso .ayuda-busca { margin: 0 0 10px; gap: 8px; }
+.teso .ayuda-busca .boton { min-height: 44px; font-size: .875rem; padding: 8px 12px; }
+.pista { flex-basis: 100%; font-size: .875rem; color: var(--gris); }
+.pista summary { cursor: pointer; color: var(--rio); min-height: 32px; display: flex; align-items: center; }
+.pista p { margin: 4px 0 0; }
+@media (max-width: 700px) { .teso .solo-ancho { display: none; } }
+/* La cuenta de la persona */
+.teso .cuenta-cab h3 { font-size: 1.15rem; }
+.teso .cuenta-toma { padding: 8px 12px; border-width: 1px; }
+.teso .cuenta-item { min-height: 44px; padding: 6px 2px; font-size: .95rem; }
+.teso .cuenta-item.sub { padding-left: 32px; font-size: .85rem; }
+.teso .cuenta-total { padding: 12px 16px; }
+.teso .cuenta-total b { font-size: 1.6rem; }
+.teso .quitar { font-size: .85rem; padding: 8px 4px; min-height: 36px; }
+.teso .confirmar { font-size: .95rem; }
+.teso .atajo { min-height: 76px; padding: 12px; }
+.teso .atajo .e { font-size: 1.3rem; }
+.teso .ayuda-busca .boton { flex: 1 1 0; white-space: nowrap; padding: 8px 10px; }
+.teso #f-cobrar, .teso #f-mov, .teso #anotar { scroll-margin-top: 72px; }
+.teso .cuenta-toma-cab { display: flex; align-items: baseline; gap: 8px; }
+.teso .cuenta-toma-cab .quitar { float: none; margin-left: auto; flex: none; }
+.teso .atajos { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.teso .atajo { min-height: 72px; padding: 10px; }
+.teso .atajo b { font-size: .9rem; line-height: 1.25; }
+.teso .atajo small { font-size: .75rem; }
