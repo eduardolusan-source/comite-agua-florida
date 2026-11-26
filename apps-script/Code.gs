@@ -156,7 +156,8 @@ function doPost(e) {
     // Un mismo envío (por ejemplo, reenviado al volver la señal) se anota una sola vez
     const idem = b.idem ? 'idem_' + String(b.idem).slice(0, 60) : '';
     if (idem) {
-      const previo = cache.get(idem) || PropertiesService.getScriptProperties().getProperty(idem);
+      let previo = cache.get(idem);
+      if (!previo) { try { previo = PropertiesService.getScriptProperties().getProperty(idem); } catch (err) { /* sin permiso: basta la caché */ } }
       if (previo) return salida_(Object.assign(JSON.parse(previo), { repetido: true }));
     }
     cache.remove('datos');
